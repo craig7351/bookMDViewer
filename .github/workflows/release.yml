@@ -66,3 +66,14 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
+
+      - name: Upload portable Windows exe
+        if: matrix.platform == 'windows-latest'
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          OUT="Markdown.Viewer_${VER}_x64_portable.exe"
+          cp "src-tauri/target/release/md-viewer.exe" "$OUT"
+          gh release upload "$GITHUB_REF_NAME" "$OUT" --clobber
