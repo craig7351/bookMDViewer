@@ -63,6 +63,6 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: "Markdown Viewer ${{ github.ref_name }}"
           releaseBody: "Download the installer for your platform below."
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
