@@ -115,11 +115,11 @@ body {
   color: var(--muted);
   font-size: 13px;
   cursor: pointer;
-  opacity: 0.7;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 #toolbar button:hover {
-  opacity: 1;
   color: var(--fg);
+  border-color: var(--accent);
 }
 #toc-toggle {
   width: 32px;

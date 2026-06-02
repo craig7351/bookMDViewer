@@ -426,6 +426,10 @@ async function init(): Promise<void> {
   const initial = await invoke<string | null>("get_initial_path");
   if (initial) {
     await openFile(initial);
+    // Optional `--edit` flag opens straight into edit mode.
+    if (await invoke<boolean>("start_in_edit")) {
+      setEditMode(true);
+    }
   }
 }
 

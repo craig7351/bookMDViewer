@@ -20,6 +20,12 @@ fn path_from_args() -> Option<PathBuf> {
         .find(|p| p.extension().map(|e| e.eq_ignore_ascii_case("md")).unwrap_or(false) && p.exists())
 }
 
+/// Whether the app was launched with `--edit` (open straight into edit mode).
+#[tauri::command]
+fn start_in_edit() -> bool {
+    std::env::args().any(|a| a == "--edit")
+}
+
 /// Returns the file path the app was opened with, if any.
 #[tauri::command]
 fn get_initial_path(state: State<AppState>) -> Option<String> {
@@ -92,6 +98,7 @@ pub fn run() {
         .manage(state)
         .invoke_handler(tauri::generate_handler![
             get_initial_path,
+            start_in_edit,
             read_md,
             write_md,
             watch_file
