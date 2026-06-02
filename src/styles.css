@@ -27,6 +27,8 @@
 html,
 body {
   margin: 0;
+  height: 100%;
+  overflow: hidden;
   background: var(--bg);
   color: var(--fg);
 }
@@ -42,8 +44,8 @@ body {
 /* ---------- Layout + TOC sidebar ---------- */
 #layout {
   display: flex;
-  align-items: flex-start;
-  min-height: 100vh;
+  align-items: stretch;
+  height: 100vh;
 }
 
 #toc {
@@ -96,29 +98,135 @@ body {
   font-size: 13px;
 }
 
-#toc-toggle {
+#toolbar {
   position: fixed;
   top: 10px;
   right: 14px;
   z-index: 10;
-  width: 32px;
+  display: flex;
+  gap: 6px;
+}
+#toolbar button {
   height: 32px;
+  padding: 0 10px;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--bg);
   color: var(--muted);
-  font-size: 15px;
+  font-size: 13px;
   cursor: pointer;
-  opacity: 0.55;
+  opacity: 0.7;
 }
-#toc-toggle:hover {
+#toolbar button:hover {
   opacity: 1;
   color: var(--fg);
+}
+#toc-toggle {
+  width: 32px;
+  padding: 0;
+  font-size: 15px;
+}
+
+/* ---------- Editor (live edit + preview) ---------- */
+#editor {
+  display: none;
+  flex: 1;
+  min-width: 0;
+  height: 100vh;
+  box-sizing: border-box;
+  padding: 32px 28px 80px;
+  border: none;
+  border-right: 1px solid var(--border);
+  resize: none;
+  outline: none;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  tab-size: 2;
+}
+#layout.mode-edit #editor {
+  display: block;
+}
+/* In edit mode the preview fills its half (no centered max-width). */
+#layout.mode-edit .markdown-body {
+  margin: 0;
+  max-width: none;
+}
+
+/* ---------- Toast ---------- */
+#toast {
+  position: fixed;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: var(--fg);
+  color: var(--bg);
+  font-size: 13.5px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+#toast[hidden] {
+  display: none;
+}
+
+/* ---------- Unsaved-changes close dialog ---------- */
+#close-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+}
+#close-modal[hidden] {
+  display: none;
+}
+.modal-box {
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 22px 24px;
+  max-width: 360px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+.modal-box p {
+  margin: 0 0 18px;
+}
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.modal-actions button {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  cursor: pointer;
+}
+#modal-save {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.modal-actions button:hover {
+  filter: brightness(1.08);
 }
 
 .markdown-body {
   flex: 1;
   min-width: 0;
+  height: 100vh;
+  overflow-y: auto;
   max-width: 860px;
   margin: 0 auto;
   padding: 32px 40px 80px;

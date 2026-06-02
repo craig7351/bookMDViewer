@@ -8,15 +8,37 @@
     <script type="module" src="/src/main.ts" defer></script>
   </head>
   <body>
-    <button id="toc-toggle" title="Toggle outline (Ctrl+\)" aria-label="Toggle outline">☰</button>
+    <div id="toolbar">
+      <button id="save-btn" title="Save (Ctrl+S)" aria-label="Save" hidden>💾 Save</button>
+      <button id="export-btn" title="Export to HTML" aria-label="Export to HTML">⬇ HTML</button>
+      <button id="edit-toggle" title="Toggle edit mode (Ctrl+E)" aria-label="Toggle edit mode">✎ Edit</button>
+      <button id="toc-toggle" title="Toggle outline (Ctrl+\)" aria-label="Toggle outline">☰</button>
+    </div>
+    <div id="toast" hidden></div>
     <div id="layout">
       <nav id="toc" aria-label="Table of contents"></nav>
+      <textarea
+        id="editor"
+        spellcheck="false"
+        placeholder="Markdown source…"
+      ></textarea>
       <article id="content" class="markdown-body">
         <div class="empty-state">
           <h1>Markdown Viewer</h1>
           <p>Drag a <code>.md</code> file here, or open one from your file manager.</p>
         </div>
       </article>
+    </div>
+
+    <div id="close-modal" hidden>
+      <div class="modal-box">
+        <p>有未存檔的變更,要在關閉前儲存嗎?</p>
+        <div class="modal-actions">
+          <button id="modal-save">儲存並關閉</button>
+          <button id="modal-discard">不儲存關閉</button>
+          <button id="modal-cancel">取消</button>
+        </div>
+      </div>
     </div>
   </body>
 </html>

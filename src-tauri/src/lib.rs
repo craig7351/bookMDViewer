@@ -37,6 +37,12 @@ fn read_md(path: String) -> Result<String, String> {
     std::fs::read_to_string(&path).map_err(|e| format!("Failed to read {path}: {e}"))
 }
 
+/// Write text back to a markdown file.
+#[tauri::command]
+fn write_md(path: String, content: String) -> Result<(), String> {
+    std::fs::write(&path, content).map_err(|e| format!("Failed to write {path}: {e}"))
+}
+
 /// Begin watching `path`; emits `md-changed` whenever the file is modified.
 /// We watch the *parent directory* (non-recursive) because many editors save
 /// by replacing the file, which breaks a watch placed directly on the file.
@@ -87,6 +93,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_initial_path,
             read_md,
+            write_md,
             watch_file
         ])
         .build(tauri::generate_context!())
