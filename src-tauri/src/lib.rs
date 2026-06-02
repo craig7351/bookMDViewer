@@ -26,6 +26,14 @@ fn start_in_edit() -> bool {
     std::env::args().any(|a| a == "--edit")
 }
 
+/// Optional `--zoom=<factor>` launch flag (0.0 means "not set").
+#[tauri::command]
+fn start_zoom() -> f64 {
+    std::env::args()
+        .find_map(|a| a.strip_prefix("--zoom=").and_then(|v| v.parse::<f64>().ok()))
+        .unwrap_or(0.0)
+}
+
 /// Returns the file path the app was opened with, if any.
 #[tauri::command]
 fn get_initial_path(state: State<AppState>) -> Option<String> {
@@ -99,6 +107,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_initial_path,
             start_in_edit,
+            start_zoom,
             read_md,
             write_md,
             watch_file

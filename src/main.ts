@@ -431,6 +431,12 @@ async function init(): Promise<void> {
       setEditMode(true);
     }
   }
+
+  // Optional `--zoom=<factor>` flag scales the whole UI.
+  const zoom = await invoke<number>("start_zoom");
+  if (zoom && zoom > 0) {
+    await getCurrentWebview().setZoom(zoom);
+  }
 }
 
 void init();
