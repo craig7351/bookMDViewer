@@ -44,6 +44,9 @@ type, the two panes **scroll together**, and `Ctrl+S` saves back to disk.
 - **Live reload** — the open file is watched on disk and re-rendered on save
 - **File association** — double-click any `.md` / `.markdown` file to open it
 - **Drag & drop** a Markdown file onto the window
+- **Find in document** (`Ctrl+F`), **open-file dialog** (`Ctrl+O`) and a **recent-files** list
+- **Local relative-path images** — `![](images/x.png)` resolves and displays
+- **Safe** — rendered HTML is sanitized with DOMPurify under a strict CSP, so opening an untrusted document won't run malicious scripts
 - Light / dark theme follows the OS setting
 - External links open in your default browser
 
@@ -66,6 +69,8 @@ Grab the latest build from the [**Releases**](https://github.com/craig7351/bookM
 
 | Shortcut | Action |
 | --- | --- |
+| `Ctrl+O` | Open a file |
+| `Ctrl+F` | Find in document |
 | `Ctrl+E` | Toggle edit / preview |
 | `Ctrl+S` | Save |
 | `Ctrl+\` | Toggle outline sidebar |
