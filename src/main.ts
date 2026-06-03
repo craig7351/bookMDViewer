@@ -50,6 +50,8 @@ const editor = document.getElementById("editor") as HTMLTextAreaElement;
 const editToggle = document.getElementById("edit-toggle") as HTMLButtonElement;
 const saveBtn = document.getElementById("save-btn") as HTMLButtonElement;
 const exportBtn = document.getElementById("export-btn") as HTMLButtonElement;
+const fontInc = document.getElementById("font-inc") as HTMLButtonElement;
+const fontDec = document.getElementById("font-dec") as HTMLButtonElement;
 const closeModal = document.getElementById("close-modal") as HTMLElement;
 const toastEl = document.getElementById("toast") as HTMLElement;
 const appWindow = getCurrentWindow();
@@ -359,6 +361,21 @@ function hideCloseModal(): void {
   },
 );
 
+// Content font scaling (persisted).
+let fontScale = parseFloat(localStorage.getItem("fontScale") ?? "1") || 1;
+function applyFontScale(): void {
+  fontScale = Math.min(2.6, Math.max(0.6, Math.round(fontScale * 10) / 10));
+  document.documentElement.style.setProperty("--content-scale", String(fontScale));
+  localStorage.setItem("fontScale", String(fontScale));
+}
+function bumpFont(delta: number): void {
+  fontScale += delta;
+  applyFontScale();
+}
+fontInc.addEventListener("click", () => bumpFont(0.1));
+fontDec.addEventListener("click", () => bumpFont(-0.1));
+applyFontScale();
+
 // Collapse / expand the outline.
 function toggleToc(): void {
   layout.classList.toggle("toc-collapsed");
@@ -374,6 +391,12 @@ window.addEventListener("keydown", (ev) => {
   } else if (ev.ctrlKey && (ev.key === "s" || ev.key === "S")) {
     ev.preventDefault();
     void save();
+  } else if (ev.ctrlKey && (ev.key === "=" || ev.key === "+")) {
+    ev.preventDefault();
+    bumpFont(0.1);
+  } else if (ev.ctrlKey && ev.key === "-") {
+    ev.preventDefault();
+    bumpFont(-0.1);
   }
 });
 

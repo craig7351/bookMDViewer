@@ -69,6 +69,7 @@ Grab the latest build from the [**Releases**](https://github.com/craig7351/bookM
 | `Ctrl+E` | Toggle edit / preview |
 | `Ctrl+S` | Save |
 | `Ctrl+\` | Toggle outline sidebar |
+| `Ctrl++` / `Ctrl+-` | Increase / decrease font size (or the `A+` / `A−` buttons) |
 
 ## Launch flags
 
