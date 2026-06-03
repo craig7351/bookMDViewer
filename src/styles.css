@@ -161,6 +161,98 @@ body {
   max-width: none;
 }
 
+/* ---------- Find bar ---------- */
+#find-bar {
+  position: fixed;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+}
+#find-bar[hidden] {
+  display: none;
+}
+#find-input {
+  width: 200px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--fg);
+  font-size: 14px;
+  padding: 2px 4px;
+}
+#find-count {
+  font-size: 12px;
+  color: var(--muted);
+  min-width: 44px;
+  text-align: center;
+}
+#find-bar button {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+#find-bar button:hover {
+  background: var(--code-bg);
+  color: var(--fg);
+}
+
+/* ---------- Recent files (empty state) ---------- */
+.empty-state a {
+  color: var(--accent);
+}
+#recent-list {
+  margin: 28px auto 0;
+  max-width: 460px;
+  text-align: left;
+}
+#recent-list h3 {
+  font-size: 13px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 0 8px;
+  border: none;
+  padding: 0;
+}
+.recent-item {
+  display: block;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  text-decoration: none;
+  color: var(--fg) !important;
+}
+.recent-item:hover {
+  background: var(--code-bg);
+  border-color: var(--accent);
+}
+.recent-item .rf-name {
+  display: block;
+  font-weight: 600;
+}
+.recent-item .rf-path {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* ---------- Toast ---------- */
 #toast {
   position: fixed;

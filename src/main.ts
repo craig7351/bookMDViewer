@@ -1,11 +1,13 @@
 import MarkdownIt from "markdown-it";
 import taskLists from "markdown-it-task-lists";
 import hljs from "highlight.js";
-import { invoke } from "@tauri-apps/api/core";
+import DOMPurify from "dompurify";
+import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 
 // hljs theme CSS as strings, so HTML export can be fully self-contained.
 import hljsLightCss from "highlight.js/styles/github.css?inline";
@@ -52,6 +54,10 @@ const saveBtn = document.getElementById("save-btn") as HTMLButtonElement;
 const exportBtn = document.getElementById("export-btn") as HTMLButtonElement;
 const fontInc = document.getElementById("font-inc") as HTMLButtonElement;
 const fontDec = document.getElementById("font-dec") as HTMLButtonElement;
+const openBtn = document.getElementById("open-btn") as HTMLButtonElement;
+const findBar = document.getElementById("find-bar") as HTMLElement;
+const findInput = document.getElementById("find-input") as HTMLInputElement;
+const findCount = document.getElementById("find-count") as HTMLElement;
 const closeModal = document.getElementById("close-modal") as HTMLElement;
 const toastEl = document.getElementById("toast") as HTMLElement;
 const appWindow = getCurrentWindow();
@@ -109,12 +115,30 @@ function buildToc(): void {
   headings.forEach((h) => spy!.observe(h));
 }
 
+// Resolve relative-path images against the open file's folder via the asset protocol.
+function resolveImages(): void {
+  if (!currentPath) return;
+  const dir = currentPath.replace(/[\\/][^\\/]*$/, "");
+  content.querySelectorAll<HTMLImageElement>("img").forEach((img) => {
+    const src = img.getAttribute("src") ?? "";
+    // Skip absolute URLs (http:, data:, asset:, file:, …) and protocol-relative.
+    if (!src || /^[a-z][a-z0-9+.-]*:/i.test(src) || src.startsWith("//")) return;
+    const abs = `${dir}/${src}`.replace(/\\/g, "/");
+    img.src = convertFileSrc(abs);
+  });
+}
+
 async function renderMarkdown(
   text: string,
   preserveScroll = false,
 ): Promise<void> {
   const scrollTop = content.scrollTop;
-  content.innerHTML = md.render(text);
+  // Sanitize rendered HTML to neutralise scripts / event handlers in untrusted docs.
+  content.innerHTML = DOMPurify.sanitize(md.render(text), {
+    ADD_TAGS: ["pre"],
+    ADD_ATTR: ["class"],
+  });
+  resolveImages();
   buildToc();
 
   // Lazily pull in mermaid only when a diagram is actually present.
@@ -158,6 +182,7 @@ async function openFile(
     currentPath = path;
     currentText = text;
     dirty = false;
+    addRecent(path);
     if (editMode) editor.value = text;
     setTitle();
     await renderMarkdown(text, preserveScroll);
@@ -376,6 +401,99 @@ fontInc.addEventListener("click", () => bumpFont(0.1));
 fontDec.addEventListener("click", () => bumpFont(-0.1));
 applyFontScale();
 
+// ---------- Open file dialog + recent files ----------
+async function openViaDialog(): Promise<void> {
+  const selected = await openDialog({
+    multiple: false,
+    filters: [{ name: "Markdown", extensions: ["md", "markdown"] }],
+  });
+  if (typeof selected === "string") await openFile(selected);
+}
+openBtn.addEventListener("click", () => void openViaDialog());
+document.getElementById("empty-open")?.addEventListener("click", (ev) => {
+  ev.preventDefault();
+  void openViaDialog();
+});
+
+function getRecents(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem("recents") ?? "[]") as string[];
+  } catch {
+    return [];
+  }
+}
+function addRecent(path: string): void {
+  const list = getRecents().filter((p) => p !== path);
+  list.unshift(path);
+  localStorage.setItem("recents", JSON.stringify(list.slice(0, 8)));
+}
+function renderRecents(): void {
+  const host = document.getElementById("recent-list");
+  if (!host) return;
+  host.innerHTML = "";
+  const list = getRecents();
+  if (!list.length) return;
+  const h = document.createElement("h3");
+  h.textContent = "最近開啟";
+  host.appendChild(h);
+  list.forEach((p) => {
+    const a = document.createElement("a");
+    a.className = "recent-item";
+    a.href = "#";
+    const name = document.createElement("span");
+    name.className = "rf-name";
+    name.textContent = p.split(/[\\/]/).pop() ?? p;
+    const full = document.createElement("span");
+    full.className = "rf-path";
+    full.textContent = p;
+    a.append(name, full);
+    a.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      void openFile(p);
+    });
+    host.appendChild(a);
+  });
+}
+
+// ---------- Find in document (Ctrl+F) ----------
+function openFind(): void {
+  findBar.hidden = false;
+  findInput.focus();
+  findInput.select();
+}
+function closeFind(): void {
+  findBar.hidden = true;
+  findCount.textContent = "";
+  window.getSelection()?.removeAllRanges();
+}
+function runFind(backwards: boolean): void {
+  const q = findInput.value;
+  if (!q) {
+    findCount.textContent = "";
+    return;
+  }
+  // window.find(text, caseSensitive, backwards, wrapAround)
+  const found = (
+    window as unknown as {
+      find: (s: string, c: boolean, b: boolean, w: boolean) => boolean;
+    }
+  ).find(q, false, backwards, true);
+  findCount.textContent = found ? "" : "無相符";
+}
+findInput.addEventListener("keydown", (ev) => {
+  if (ev.key === "Enter") {
+    ev.preventDefault();
+    runFind(ev.shiftKey);
+  } else if (ev.key === "Escape") {
+    ev.preventDefault();
+    closeFind();
+  }
+});
+findInput.addEventListener("input", () => runFind(false));
+(document.getElementById("find-next") as HTMLButtonElement).addEventListener("click", () => runFind(false));
+(document.getElementById("find-prev") as HTMLButtonElement).addEventListener("click", () => runFind(true));
+(document.getElementById("find-close") as HTMLButtonElement).addEventListener("click", closeFind);
+
 // Collapse / expand the outline.
 function toggleToc(): void {
   layout.classList.toggle("toc-collapsed");
@@ -397,6 +515,14 @@ window.addEventListener("keydown", (ev) => {
   } else if (ev.ctrlKey && ev.key === "-") {
     ev.preventDefault();
     bumpFont(-0.1);
+  } else if (ev.ctrlKey && (ev.key === "o" || ev.key === "O")) {
+    ev.preventDefault();
+    void openViaDialog();
+  } else if (ev.ctrlKey && (ev.key === "f" || ev.key === "F")) {
+    ev.preventDefault();
+    openFind();
+  } else if (ev.key === "Escape" && !findBar.hidden) {
+    closeFind();
   }
 });
 
@@ -444,6 +570,9 @@ async function init(): Promise<void> {
       showCloseModal();
     }
   });
+
+  // Populate the empty-state recent-files list.
+  renderRecents();
 
   // File the app was launched with (Windows / Linux association).
   const initial = await invoke<string | null>("get_initial_path");

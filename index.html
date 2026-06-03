@@ -9,6 +9,7 @@
   </head>
   <body>
     <div id="toolbar">
+      <button id="open-btn" class="icon-btn" title="Open file (Ctrl+O)" aria-label="Open file">📂</button>
       <button id="font-dec" class="icon-btn" title="Decrease font (Ctrl+-)" aria-label="Decrease font size">A−</button>
       <button id="font-inc" class="icon-btn" title="Increase font (Ctrl++)" aria-label="Increase font size">A+</button>
       <button id="save-btn" title="Save (Ctrl+S)" aria-label="Save" hidden>💾 Save</button>
@@ -17,6 +18,13 @@
       <button id="toc-toggle" title="Toggle outline (Ctrl+\)" aria-label="Toggle outline">☰</button>
     </div>
     <div id="toast" hidden></div>
+    <div id="find-bar" hidden>
+      <input id="find-input" type="text" placeholder="Find…" spellcheck="false" />
+      <span id="find-count"></span>
+      <button id="find-prev" title="Previous (Shift+Enter)" aria-label="Previous match">↑</button>
+      <button id="find-next" title="Next (Enter)" aria-label="Next match">↓</button>
+      <button id="find-close" title="Close (Esc)" aria-label="Close find">✕</button>
+    </div>
     <div id="layout">
       <nav id="toc" aria-label="Table of contents"></nav>
       <textarea
@@ -27,7 +35,8 @@
       <article id="content" class="markdown-body">
         <div class="empty-state">
           <h1>Markdown Viewer</h1>
-          <p>Drag a <code>.md</code> file here, or open one from your file manager.</p>
+          <p>Drag a <code>.md</code> file here, or <a id="empty-open" href="#">open one</a>.</p>
+          <div id="recent-list"></div>
         </div>
       </article>
     </div>
