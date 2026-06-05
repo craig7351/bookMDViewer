@@ -79,6 +79,17 @@ Mermaid 圖表、可即時預覽的編輯器,以及一鍵匯出成自包含的 H
 
 之後就能正常開啟,不需要每次都做。
 
+### Linux 疑難排解
+
+若遇到白畫面、或 `libGLESv2.so.2: undefined symbol`(常見於不同 GPU/驅動/虛擬機環境),
+App 已預設停用 WebKitGTK 的 DMABUF 渲染來繞過。若仍有問題,可在啟動前再加一個環境變數:
+
+```bash
+WEBKIT_DISABLE_COMPOSITING_MODE=1 ./Markdown.Viewer_*_amd64.AppImage
+```
+
+(也可反過來用 `WEBKIT_DISABLE_DMABUF_RENDERER=0` 還原預設行為。)
+
 ## 鍵盤快捷鍵
 
 | 快捷鍵 | 動作 |

@@ -84,6 +84,18 @@ because the developer cannot be verified"). Use any one of these:
 
 You only need to do this once.
 
+### Linux troubleshooting
+
+If you hit a blank window or `libGLESv2.so.2: undefined symbol` (common across
+different GPU/driver/VM setups), the app already disables WebKitGTK's DMABUF
+renderer to work around it. If problems persist, add one more env var at launch:
+
+```bash
+WEBKIT_DISABLE_COMPOSITING_MODE=1 ./Markdown.Viewer_*_amd64.AppImage
+```
+
+(You can restore the default behaviour with `WEBKIT_DISABLE_DMABUF_RENDERER=0`.)
+
 ## Keyboard shortcuts
 
 | Shortcut | Action |
