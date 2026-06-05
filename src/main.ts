@@ -51,6 +51,11 @@ const md: MarkdownIt = new MarkdownIt({
     lastFrontMatter = fm;
   });
 
+// Disable setext headings so `text` immediately above `---` / `===` stays a
+// paragraph + horizontal rule (the usual intent) instead of becoming a heading
+// that pollutes the outline.
+md.disable("lheading");
+
 const content = document.getElementById("content") as HTMLElement;
 const toc = document.getElementById("toc") as HTMLElement;
 const layout = document.getElementById("layout") as HTMLElement;
