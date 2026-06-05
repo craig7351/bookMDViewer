@@ -66,6 +66,24 @@ Grab the latest build from the [**Releases**](https://github.com/craig7351/bookM
 > portable build runs without installing but won't change file associations.
 > All builds require the system WebView (WebView2 is preinstalled on Windows 11).
 
+### Opening on macOS for the first time (important)
+
+The macOS build is **not notarized by Apple yet**, and recent macOS releases are
+increasingly strict, so the first launch may be blocked ("cannot be opened
+because the developer cannot be verified"). Use any one of these:
+
+- **Right-click → Open** (Ventura and earlier): right-click `Markdown Viewer.app`
+  → **Open** → **Open** again.
+- **System Settings** (Sonoma / Sequoia): after the first blocked attempt, go to
+  **System Settings → Privacy & Security** and click **Open Anyway**.
+- **Or run once in Terminal** (clears the quarantine attribute):
+
+  ```bash
+  xattr -cr "/Applications/Markdown Viewer.app"
+  ```
+
+You only need to do this once.
+
 ## Keyboard shortcuts
 
 | Shortcut | Action |
