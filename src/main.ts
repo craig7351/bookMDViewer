@@ -503,6 +503,22 @@ fontInc.addEventListener("click", () => bumpFont(0.1));
 fontDec.addEventListener("click", () => bumpFont(-0.1));
 applyFontScale();
 
+// ---------- About dialog (version info) ----------
+const REPO_URL = "https://github.com/craig7351/bookMDViewer";
+const aboutModal = document.getElementById("about-modal") as HTMLElement;
+const aboutVersion = document.getElementById("about-version") as HTMLElement;
+aboutVersion.textContent = `v${__APP_VERSION__}`;
+document.getElementById("about-open")?.addEventListener("click", (ev) => {
+  ev.preventDefault();
+  aboutModal.hidden = false;
+});
+document.getElementById("about-close")?.addEventListener("click", () => {
+  aboutModal.hidden = true;
+});
+document.getElementById("about-github")?.addEventListener("click", () => {
+  void openUrl(REPO_URL);
+});
+
 // ---------- Open file dialog + recent files ----------
 async function openViaDialog(): Promise<void> {
   const selected = await openDialog({
@@ -672,6 +688,10 @@ async function init(): Promise<void> {
       showCloseModal();
     }
   });
+
+  // Signal the backend that listeners are ready, flushing any file-open
+  // requests that arrived during cold start (fixes macOS first-open blank).
+  await invoke("frontend_ready");
 
   // Populate the empty-state recent-files list.
   renderRecents();

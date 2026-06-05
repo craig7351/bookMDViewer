@@ -36,9 +36,26 @@
         <div class="empty-state">
           <h1>Markdown Viewer</h1>
           <p>Drag a <code>.md</code> file here, or <a id="empty-open" href="#">open one</a>.</p>
+          <p class="app-version"><a id="about-open" href="#">關於 / About</a></p>
           <div id="recent-list"></div>
         </div>
       </article>
+    </div>
+
+    <div id="about-modal" hidden>
+      <div class="modal-box about-box">
+        <div class="about-logo">📘</div>
+        <div class="about-name">Markdown Viewer</div>
+        <div class="about-ver" id="about-version"></div>
+        <p class="about-desc">
+          輕量、完全本機、開源的 Markdown 檢視器與編輯器。<br />
+          Lightweight, local-first, open-source Markdown viewer &amp; editor.
+        </p>
+        <div class="modal-actions">
+          <button id="about-github">GitHub ↗</button>
+          <button id="about-close">關閉</button>
+        </div>
+      </div>
     </div>
 
     <div id="close-modal" hidden>

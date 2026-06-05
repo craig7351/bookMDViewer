@@ -332,6 +332,54 @@ body {
   display: none;
 }
 
+/* ---------- About dialog ---------- */
+.empty-state .app-version {
+  margin-top: 10px;
+  font-size: 13px;
+}
+#about-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+}
+#about-modal[hidden] {
+  display: none;
+}
+.about-box {
+  text-align: center;
+}
+.about-logo {
+  font-size: 44px;
+  line-height: 1;
+}
+.about-name {
+  font-size: 20px;
+  font-weight: 700;
+  margin-top: 8px;
+}
+.about-ver {
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  margin-top: 2px;
+}
+.about-desc {
+  color: var(--muted);
+  font-size: 13.5px;
+  margin: 14px 0 18px;
+}
+.about-box .modal-actions {
+  justify-content: center;
+}
+#about-github {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
 /* ---------- Unsaved-changes close dialog ---------- */
 #close-modal {
   position: fixed;

@@ -9,6 +9,10 @@ use tauri::{Emitter, State};
 struct AppState {
     current: Mutex<Option<PathBuf>>,
     watcher: Mutex<Option<RecommendedWatcher>>,
+    /// True once the webview has registered its event listeners.
+    ready: Mutex<bool>,
+    /// macOS file-open requests received before the frontend was ready.
+    pending: Mutex<Vec<String>>,
 }
 
 /// Pull a markdown file path out of the process arguments (set when the OS
@@ -32,6 +36,18 @@ fn start_zoom() -> f64 {
     std::env::args()
         .find_map(|a| a.strip_prefix("--zoom=").and_then(|v| v.parse::<f64>().ok()))
         .unwrap_or(0.0)
+}
+
+/// Called by the webview once its event listeners are registered. Flushes any
+/// file-open requests that arrived during cold start (macOS drops events that
+/// are emitted before the frontend is listening).
+#[tauri::command]
+fn frontend_ready(app: tauri::AppHandle, state: State<AppState>) {
+    *state.ready.lock().unwrap() = true;
+    let pending: Vec<String> = state.pending.lock().unwrap().drain(..).collect();
+    for path in pending {
+        let _ = app.emit("open-file", path);
+    }
 }
 
 /// Returns the file path the app was opened with, if any.
@@ -107,6 +123,7 @@ pub fn run() {
         .manage(state)
         .invoke_handler(tauri::generate_handler![
             get_initial_path,
+            frontend_ready,
             start_in_edit,
             start_zoom,
             read_md,
@@ -116,12 +133,24 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app, event| {
-            // macOS delivers file-association opens as a runtime event.
+            // macOS delivers file-association opens as a runtime event. During
+            // cold start this can fire before the webview is listening, so we
+            // buffer until `frontend_ready` flushes the queue.
             #[cfg(target_os = "macos")]
-            if let tauri::RunEvent::Opened { urls } = &event {
-                for url in urls {
-                    if let Ok(p) = url.to_file_path() {
-                        let _ = app.emit("open-file", p.to_string_lossy().into_owned());
+            {
+                use tauri::Manager as _;
+                if let tauri::RunEvent::Opened { urls } = &event {
+                    let state = app.state::<AppState>();
+                    let ready = *state.ready.lock().unwrap();
+                    for url in urls {
+                        if let Ok(p) = url.to_file_path() {
+                            let s = p.to_string_lossy().into_owned();
+                            if ready {
+                                let _ = app.emit("open-file", s);
+                            } else {
+                                state.pending.lock().unwrap().push(s);
+                            }
+                        }
                     }
                 }
             }
