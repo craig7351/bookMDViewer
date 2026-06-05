@@ -1,5 +1,6 @@
 import MarkdownIt from "markdown-it";
 import taskLists from "markdown-it-task-lists";
+import frontMatterPlugin from "markdown-it-front-matter";
 import hljs from "highlight.js";
 import DOMPurify from "dompurify";
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
@@ -22,6 +23,8 @@ const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
   document.head.appendChild(style);
 }
 
+let lastFrontMatter = "";
+
 const md: MarkdownIt = new MarkdownIt({
   html: true,
   linkify: true,
@@ -42,7 +45,11 @@ const md: MarkdownIt = new MarkdownIt({
     }
     return `<pre class="hljs"><code>${md.utils.escapeHtml(str)}</code></pre>`;
   },
-}).use(taskLists, { enabled: true, label: true });
+})
+  .use(taskLists, { enabled: true, label: true })
+  .use(frontMatterPlugin, (fm: string) => {
+    lastFrontMatter = fm;
+  });
 
 const content = document.getElementById("content") as HTMLElement;
 const toc = document.getElementById("toc") as HTMLElement;
@@ -128,16 +135,111 @@ function resolveImages(): void {
   });
 }
 
+function formatFmValue(v: unknown): string {
+  if (Array.isArray(v)) return v.map((x) => String(x)).join(", ");
+  if (v instanceof Date) return v.toISOString();
+  if (v && typeof v === "object") return JSON.stringify(v);
+  return String(v);
+}
+
+function buildFmCard(data: Record<string, unknown>): HTMLElement | null {
+  const card = document.createElement("div");
+  card.className = "fm-card";
+  const used = new Set<string>();
+
+  if (typeof data.title === "string" && data.title.trim()) {
+    const t = document.createElement("div");
+    t.className = "fm-title";
+    t.textContent = data.title;
+    card.appendChild(t);
+  }
+  used.add("title");
+
+  if (typeof data.description === "string" && data.description.trim()) {
+    const d = document.createElement("div");
+    d.className = "fm-desc";
+    d.textContent = data.description;
+    card.appendChild(d);
+  }
+  used.add("description");
+
+  const meta = document.createElement("div");
+  meta.className = "fm-meta";
+  const dateVal = data.pubDate ?? data.date ?? data.published;
+  ["pubDate", "date", "published"].forEach((k) => used.add(k));
+  if (dateVal) {
+    const s = document.createElement("span");
+    s.className = "fm-chip fm-date";
+    s.textContent = `📅 ${formatFmValue(dateVal)}`;
+    meta.appendChild(s);
+  }
+  used.add("tags");
+  if (Array.isArray(data.tags)) {
+    data.tags.forEach((tag) => {
+      const c = document.createElement("span");
+      c.className = "fm-chip fm-tag";
+      c.textContent = `#${String(tag)}`;
+      meta.appendChild(c);
+    });
+  }
+  used.add("draft");
+  if (data.draft === true) {
+    const b = document.createElement("span");
+    b.className = "fm-chip fm-badge";
+    b.textContent = "Draft";
+    meta.appendChild(b);
+  }
+  if (meta.childNodes.length) card.appendChild(meta);
+
+  const rest = Object.keys(data).filter((k) => {
+    if (used.has(k)) return false;
+    const v = data[k];
+    if (v === null || v === "" || v === undefined) return false;
+    if (Array.isArray(v) && v.length === 0) return false;
+    return true;
+  });
+  if (rest.length) {
+    const dl = document.createElement("dl");
+    dl.className = "fm-dl";
+    rest.forEach((k) => {
+      const dt = document.createElement("dt");
+      dt.textContent = k;
+      const dd = document.createElement("dd");
+      dd.textContent = formatFmValue(data[k]);
+      dl.append(dt, dd);
+    });
+    card.appendChild(dl);
+  }
+
+  return card.childNodes.length ? card : null;
+}
+
+// Parse YAML front matter (lazy-loaded) and prepend a metadata card.
+async function renderFrontMatter(): Promise<void> {
+  if (!lastFrontMatter.trim()) return;
+  try {
+    const yaml = await import("js-yaml");
+    const data = yaml.load(lastFrontMatter);
+    if (!data || typeof data !== "object") return;
+    const card = buildFmCard(data as Record<string, unknown>);
+    if (card) content.prepend(card);
+  } catch (e) {
+    console.error("front matter parse failed", e);
+  }
+}
+
 async function renderMarkdown(
   text: string,
   preserveScroll = false,
 ): Promise<void> {
   const scrollTop = content.scrollTop;
+  lastFrontMatter = "";
   // Sanitize rendered HTML to neutralise scripts / event handlers in untrusted docs.
   content.innerHTML = DOMPurify.sanitize(md.render(text), {
     ADD_TAGS: ["pre"],
     ADD_ATTR: ["class"],
   });
+  await renderFrontMatter();
   resolveImages();
   buildToc();
 
