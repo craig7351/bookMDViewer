@@ -2,7 +2,67 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+use serde::Serialize;
 use tauri::{Emitter, State};
+
+#[derive(Serialize)]
+struct DirEntry {
+    name: String,
+    path: String,
+    is_dir: bool,
+}
+
+#[derive(Serialize)]
+struct DirListing {
+    dir: String,
+    parent: Option<String>,
+    entries: Vec<DirEntry>,
+}
+
+/// List sub-folders and Markdown files in a directory (for the file explorer).
+/// If `path` is a file, its parent directory is listed.
+#[tauri::command]
+fn list_dir(path: String) -> Result<DirListing, String> {
+    let p = std::path::PathBuf::from(&path);
+    let dir = if p.is_dir() {
+        p
+    } else {
+        p.parent().map(Path::to_path_buf).unwrap_or(p)
+    };
+
+    let mut entries = Vec::new();
+    for entry in std::fs::read_dir(&dir).map_err(|e| e.to_string())?.flatten() {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if name.starts_with('.') {
+            continue; // skip hidden
+        }
+        let ep = entry.path();
+        let is_dir = ep.is_dir();
+        let is_md = ep
+            .extension()
+            .map(|e| e.eq_ignore_ascii_case("md") || e.eq_ignore_ascii_case("markdown"))
+            .unwrap_or(false);
+        if is_dir || is_md {
+            entries.push(DirEntry {
+                name,
+                path: ep.to_string_lossy().into_owned(),
+                is_dir,
+            });
+        }
+    }
+    // Folders first, then files; alphabetical, case-insensitive.
+    entries.sort_by(|a, b| {
+        b.is_dir
+            .cmp(&a.is_dir)
+            .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+    });
+
+    Ok(DirListing {
+        dir: dir.to_string_lossy().into_owned(),
+        parent: dir.parent().map(|p| p.to_string_lossy().into_owned()),
+        entries,
+    })
+}
 
 /// Holds the file we are currently viewing plus the live filesystem watcher.
 #[derive(Default)]
@@ -128,6 +188,7 @@ pub fn run() {
             start_zoom,
             read_md,
             write_md,
+            list_dir,
             watch_file
         ])
         .build(tauri::generate_context!())

@@ -10,12 +10,14 @@
   <body>
     <div id="toolbar">
       <button id="open-btn" class="icon-btn" title="Open file (Ctrl+O)" aria-label="Open file">📂</button>
+      <button id="files-btn" class="icon-btn" title="File explorer (Ctrl+B)" aria-label="File explorer">🗂</button>
       <button id="font-dec" class="icon-btn" title="Decrease font (Ctrl+-)" aria-label="Decrease font size">A−</button>
       <button id="font-inc" class="icon-btn" title="Increase font (Ctrl++)" aria-label="Increase font size">A+</button>
       <button id="save-btn" title="Save (Ctrl+S)" aria-label="Save" hidden>💾 Save</button>
       <button id="export-btn" title="Export to HTML" aria-label="Export to HTML">⬇ HTML</button>
       <button id="edit-toggle" title="Toggle edit mode (Ctrl+E)" aria-label="Toggle edit mode">✎ Edit</button>
       <button id="toc-toggle" title="Toggle outline (Ctrl+\)" aria-label="Toggle outline">☰</button>
+      <button id="close-doc-btn" class="icon-btn" title="Close document — back to home" aria-label="Close document" hidden>✕</button>
     </div>
     <div id="toast" hidden></div>
     <div id="find-bar" hidden>
@@ -26,6 +28,7 @@
       <button id="find-close" title="Close (Esc)" aria-label="Close find">✕</button>
     </div>
     <div id="layout">
+      <nav id="files" aria-label="File explorer"></nav>
       <nav id="toc" aria-label="Table of contents"></nav>
       <textarea
         id="editor"

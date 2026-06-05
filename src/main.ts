@@ -67,12 +67,23 @@ const exportBtn = document.getElementById("export-btn") as HTMLButtonElement;
 const fontInc = document.getElementById("font-inc") as HTMLButtonElement;
 const fontDec = document.getElementById("font-dec") as HTMLButtonElement;
 const openBtn = document.getElementById("open-btn") as HTMLButtonElement;
+const filesBtn = document.getElementById("files-btn") as HTMLButtonElement;
+const filesPanel = document.getElementById("files") as HTMLElement;
 const findBar = document.getElementById("find-bar") as HTMLElement;
 const findInput = document.getElementById("find-input") as HTMLInputElement;
 const findCount = document.getElementById("find-count") as HTMLElement;
 const closeModal = document.getElementById("close-modal") as HTMLElement;
+const closeDocBtn = document.getElementById("close-doc-btn") as HTMLButtonElement;
 const toastEl = document.getElementById("toast") as HTMLElement;
 const appWindow = getCurrentWindow();
+const EMPTY_STATE_HTML = `<div class="empty-state">
+  <h1>Markdown Viewer</h1>
+  <p>Drag a <code>.md</code> file here, or <a id="empty-open" href="#">open one</a>.</p>
+  <p class="app-version"><a id="about-open" href="#">關於 / About</a></p>
+  <div id="recent-list"></div>
+</div>`;
+let closeAction: "window" | "doc" | "switch" = "window";
+let pendingSwitchPath: string | null = null;
 let currentPath: string | null = null;
 let currentText = "";
 let editMode = false;
@@ -104,6 +115,13 @@ function buildToc(): void {
     a.className = `toc-link toc-${h.tagName.toLowerCase()}`;
     a.addEventListener("click", (ev) => {
       ev.preventDefault();
+      // Expand any collapsed <details> the heading lives inside, otherwise it's
+      // hidden and scrollIntoView can't reach it (e.g. unclosed <details>).
+      let p: HTMLElement | null = h.parentElement;
+      while (p && p !== content) {
+        if (p instanceof HTMLDetailsElement) p.open = true;
+        p = p.parentElement;
+      }
       h.scrollIntoView({ behavior: "smooth", block: "start" });
     });
     toc.appendChild(a);
@@ -277,6 +295,24 @@ function setTitle(): void {
   saveBtn.hidden = !editMode;
   saveBtn.disabled = !dirty;
   saveBtn.textContent = dirty ? "💾 Save*" : "💾 Saved";
+  closeDocBtn.hidden = !currentPath;
+}
+
+// Close the current document and return to the home / empty-state screen.
+function goHome(): void {
+  currentPath = null;
+  currentText = "";
+  dirty = false;
+  if (editMode) {
+    editMode = false;
+    layout.classList.remove("mode-edit");
+    editToggle.textContent = "✎ Edit";
+  }
+  content.innerHTML = EMPTY_STATE_HTML;
+  buildToc();
+  renderRecents();
+  if (filesOpen) void renderFiles(null);
+  setTitle();
 }
 
 async function openFile(
@@ -296,6 +332,7 @@ async function openFile(
     if (watch) {
       await invoke("watch_file", { path });
     }
+    if (filesOpen) void renderFiles(dirOf(path));
   } catch (e) {
     content.innerHTML = `<div class="empty-state"><p>${String(e)}</p></div>`;
     buildToc();
@@ -476,12 +513,21 @@ function hideCloseModal(): void {
   "click",
   hideCloseModal,
 );
+function finishClose(): void {
+  dirty = false;
+  if (closeAction === "doc") {
+    goHome();
+  } else if (closeAction === "switch") {
+    if (pendingSwitchPath) void openFile(pendingSwitchPath);
+  } else {
+    void appWindow.destroy();
+  }
+}
 (document.getElementById("modal-discard") as HTMLButtonElement).addEventListener(
   "click",
   () => {
-    dirty = false;
     hideCloseModal();
-    void appWindow.destroy();
+    finishClose();
   },
 );
 (document.getElementById("modal-save") as HTMLButtonElement).addEventListener(
@@ -489,9 +535,19 @@ function hideCloseModal(): void {
   async () => {
     await save();
     hideCloseModal();
-    void appWindow.destroy();
+    finishClose();
   },
 );
+
+// Close the current document (back to home), confirming if there are edits.
+closeDocBtn.addEventListener("click", () => {
+  if (dirty) {
+    closeAction = "doc";
+    showCloseModal();
+  } else {
+    goHome();
+  }
+});
 
 // Content font scaling (persisted).
 let fontScale = parseFloat(localStorage.getItem("fontScale") ?? "1") || 1;
@@ -513,10 +569,6 @@ const REPO_URL = "https://github.com/craig7351/bookMDViewer";
 const aboutModal = document.getElementById("about-modal") as HTMLElement;
 const aboutVersion = document.getElementById("about-version") as HTMLElement;
 aboutVersion.textContent = `v${__APP_VERSION__}`;
-document.getElementById("about-open")?.addEventListener("click", (ev) => {
-  ev.preventDefault();
-  aboutModal.hidden = false;
-});
 document.getElementById("about-close")?.addEventListener("click", () => {
   aboutModal.hidden = true;
 });
@@ -533,9 +585,16 @@ async function openViaDialog(): Promise<void> {
   if (typeof selected === "string") await openFile(selected);
 }
 openBtn.addEventListener("click", () => void openViaDialog());
-document.getElementById("empty-open")?.addEventListener("click", (ev) => {
-  ev.preventDefault();
-  void openViaDialog();
+// Delegated so the empty-state links keep working after goHome() rebuilds them.
+content.addEventListener("click", (ev) => {
+  const target = ev.target as HTMLElement;
+  if (target.closest("#empty-open")) {
+    ev.preventDefault();
+    void openViaDialog();
+  } else if (target.closest("#about-open")) {
+    ev.preventDefault();
+    aboutModal.hidden = false;
+  }
 });
 
 function getRecents(): string[] {
@@ -577,6 +636,118 @@ function renderRecents(): void {
     host.appendChild(a);
   });
 }
+
+// ---------- File explorer panel ----------
+interface DirEntry {
+  name: string;
+  path: string;
+  is_dir: boolean;
+}
+interface DirListing {
+  dir: string;
+  parent: string | null;
+  entries: DirEntry[];
+}
+
+let filesOpen = localStorage.getItem("filesOpen") === "true";
+
+function dirOf(p: string): string {
+  return p.replace(/[\\/][^\\/]*$/, "");
+}
+
+function fileRow(
+  label: string,
+  icon: string,
+  onClick: () => void,
+  opts: { active?: boolean; muted?: boolean } = {},
+): HTMLElement {
+  const a = document.createElement("a");
+  a.className = "file-item";
+  if (opts.active) a.classList.add("active");
+  if (opts.muted) a.classList.add("muted");
+  a.href = "#";
+  const ic = document.createElement("span");
+  ic.className = "fi-icon";
+  ic.textContent = icon;
+  const nm = document.createElement("span");
+  nm.className = "fi-name";
+  nm.textContent = label;
+  a.append(ic, nm);
+  a.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    onClick();
+  });
+  return a;
+}
+
+async function renderFiles(dir: string | null): Promise<void> {
+  filesPanel.innerHTML = "";
+  if (!dir) {
+    const hint = document.createElement("div");
+    hint.className = "files-hint";
+    hint.textContent = "開啟檔案後可瀏覽其目錄";
+    filesPanel.appendChild(hint);
+    return;
+  }
+  let listing: DirListing;
+  try {
+    listing = await invoke<DirListing>("list_dir", { path: dir });
+  } catch (e) {
+    const hint = document.createElement("div");
+    hint.className = "files-hint";
+    hint.textContent = String(e);
+    filesPanel.appendChild(hint);
+    return;
+  }
+
+  const head = document.createElement("div");
+  head.className = "files-head";
+  head.textContent = listing.dir.split(/[\\/]/).pop() || listing.dir;
+  head.title = listing.dir;
+  filesPanel.appendChild(head);
+
+  if (listing.parent) {
+    filesPanel.appendChild(
+      fileRow("..", "📁", () => void renderFiles(listing.parent), {
+        muted: true,
+      }),
+    );
+  }
+  for (const entry of listing.entries) {
+    if (entry.is_dir) {
+      filesPanel.appendChild(
+        fileRow(entry.name, "📁", () => void renderFiles(entry.path)),
+      );
+    } else {
+      filesPanel.appendChild(
+        fileRow(entry.name, "📄", () => switchToFile(entry.path), {
+          active: entry.path === currentPath,
+        }),
+      );
+    }
+  }
+}
+
+function switchToFile(path: string): void {
+  if (path === currentPath) return;
+  if (dirty) {
+    closeAction = "switch";
+    pendingSwitchPath = path;
+    showCloseModal();
+  } else {
+    void openFile(path);
+  }
+}
+
+function toggleFiles(): void {
+  filesOpen = !filesOpen;
+  layout.classList.toggle("files-open", filesOpen);
+  localStorage.setItem("filesOpen", String(filesOpen));
+  if (filesOpen) void renderFiles(currentPath ? dirOf(currentPath) : null);
+}
+filesBtn.addEventListener("click", toggleFiles);
+// Restore persisted state on load.
+if (filesOpen) layout.classList.add("files-open");
 
 // ---------- Find in document (Ctrl+F) ----------
 function openFind(): void {
@@ -644,6 +815,9 @@ window.addEventListener("keydown", (ev) => {
   } else if (ev.ctrlKey && (ev.key === "f" || ev.key === "F")) {
     ev.preventDefault();
     openFind();
+  } else if (ev.ctrlKey && (ev.key === "b" || ev.key === "B")) {
+    ev.preventDefault();
+    toggleFiles();
   } else if (ev.key === "Escape" && !findBar.hidden) {
     closeFind();
   }
@@ -690,6 +864,7 @@ async function init(): Promise<void> {
   await appWindow.onCloseRequested((event) => {
     if (dirty) {
       event.preventDefault();
+      closeAction = "window";
       showCloseModal();
     }
   });
@@ -700,6 +875,9 @@ async function init(): Promise<void> {
 
   // Populate the empty-state recent-files list.
   renderRecents();
+
+  // Restore the file-explorer panel if it was left open.
+  if (filesOpen) void renderFiles(null);
 
   // File the app was launched with (Windows / Linux association).
   const initial = await invoke<string | null>("get_initial_path");
