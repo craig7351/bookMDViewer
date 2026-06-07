@@ -130,6 +130,22 @@ body {
   color: var(--muted);
   font-size: 12.5px;
 }
+.files-path {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 0 8px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--code-bg);
+  color: var(--fg);
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  outline: none;
+}
+.files-path:focus {
+  border-color: var(--accent);
+}
 .file-item {
   display: flex;
   align-items: center;

@@ -688,8 +688,8 @@ function fileRow(
 }
 
 async function renderFiles(dir: string | null): Promise<void> {
-  filesPanel.innerHTML = "";
   if (!dir) {
+    filesPanel.innerHTML = "";
     const hint = document.createElement("div");
     hint.className = "files-hint";
     hint.textContent = "開啟檔案後可瀏覽其目錄";
@@ -700,18 +700,30 @@ async function renderFiles(dir: string | null): Promise<void> {
   try {
     listing = await invoke<DirListing>("list_dir", { path: dir });
   } catch (e) {
-    const hint = document.createElement("div");
-    hint.className = "files-hint";
-    hint.textContent = String(e);
-    filesPanel.appendChild(hint);
+    // Keep the current view; just report (e.g. typed a path that doesn't exist).
+    toast(String(e));
     return;
   }
 
-  const head = document.createElement("div");
-  head.className = "files-head";
-  head.textContent = listing.dir.split(/[\\/]/).pop() || listing.dir;
-  head.title = listing.dir;
-  filesPanel.appendChild(head);
+  filesPanel.innerHTML = "";
+
+  // Editable full-path bar — type a folder and press Enter to jump there.
+  const pathInput = document.createElement("input");
+  pathInput.className = "files-path";
+  pathInput.value = listing.dir;
+  pathInput.spellcheck = false;
+  pathInput.title = listing.dir;
+  pathInput.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter") {
+      ev.preventDefault();
+      const v = pathInput.value.trim();
+      if (v) void renderFiles(v);
+    } else if (ev.key === "Escape") {
+      pathInput.value = listing.dir;
+      pathInput.blur();
+    }
+  });
+  filesPanel.appendChild(pathInput);
 
   if (listing.parent) {
     filesPanel.appendChild(
