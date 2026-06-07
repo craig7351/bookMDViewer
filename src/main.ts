@@ -283,6 +283,13 @@ async function renderMarkdown(
     } catch (e) {
       console.error("mermaid render failed", e);
     }
+    // Click a rendered diagram to open it in the zoom/pan lightbox.
+    diagrams.forEach((pre) => {
+      const svg = pre.querySelector("svg");
+      if (!svg) return;
+      pre.classList.add("mermaid-zoomable");
+      pre.addEventListener("click", () => openDiagram(svg));
+    });
   }
 
   // New documents start at the top; only hot-reload / live-edit keep position.
@@ -749,6 +756,101 @@ filesBtn.addEventListener("click", toggleFiles);
 // Restore persisted state on load.
 if (filesOpen) layout.classList.add("files-open");
 
+// ---------- Mermaid diagram lightbox (click to zoom/pan) ----------
+const diagramModal = document.getElementById("diagram-modal") as HTMLElement;
+const diagramStage = document.getElementById("diagram-stage") as HTMLElement;
+const dgZoomLabel = document.getElementById("dg-zoom") as HTMLElement;
+let dgEl: HTMLElement | null = null;
+let dgScale = 1;
+let dgX = 0;
+let dgY = 0;
+let dgNatW = 0;
+let dgNatH = 0;
+
+function dgApply(): void {
+  if (dgEl) dgEl.style.transform = `translate(${dgX}px, ${dgY}px) scale(${dgScale})`;
+  dgZoomLabel.textContent = `${Math.round(dgScale * 100)}%`;
+}
+function dgFit(): void {
+  const sw = diagramStage.clientWidth;
+  const sh = diagramStage.clientHeight;
+  if (!dgNatW || !dgNatH) return;
+  dgScale = Math.min(sw / dgNatW, sh / dgNatH, 1) || 1;
+  dgX = (sw - dgNatW * dgScale) / 2;
+  dgY = (sh - dgNatH * dgScale) / 2;
+  dgApply();
+}
+function dgZoomAt(cx: number, cy: number, factor: number): void {
+  const ns = Math.min(8, Math.max(0.1, dgScale * factor));
+  const k = ns / dgScale;
+  dgX = cx - (cx - dgX) * k;
+  dgY = cy - (cy - dgY) * k;
+  dgScale = ns;
+  dgApply();
+}
+function openDiagram(svg: SVGElement): void {
+  diagramStage.innerHTML = "";
+  const card = document.createElement("div");
+  card.className = "dg-card";
+  const clone = svg.cloneNode(true) as SVGElement;
+  const vb = (svg as SVGSVGElement).viewBox?.baseVal;
+  clone.removeAttribute("style");
+  if (vb && vb.width && vb.height) {
+    clone.setAttribute("width", String(vb.width));
+    clone.setAttribute("height", String(vb.height));
+  }
+  card.appendChild(clone);
+  diagramStage.appendChild(card);
+  dgEl = card;
+  diagramModal.hidden = false;
+  dgNatW = card.offsetWidth;
+  dgNatH = card.offsetHeight;
+  dgFit();
+}
+function closeDiagram(): void {
+  diagramModal.hidden = true;
+  diagramStage.innerHTML = "";
+  dgEl = null;
+}
+
+diagramStage.addEventListener(
+  "wheel",
+  (e) => {
+    e.preventDefault();
+    const rect = diagramStage.getBoundingClientRect();
+    dgZoomAt(e.clientX - rect.left, e.clientY - rect.top, e.deltaY < 0 ? 1.12 : 1 / 1.12);
+  },
+  { passive: false },
+);
+let dgDragging = false;
+let dgLastX = 0;
+let dgLastY = 0;
+diagramStage.addEventListener("mousedown", (e) => {
+  dgDragging = true;
+  dgLastX = e.clientX;
+  dgLastY = e.clientY;
+  diagramStage.classList.add("grabbing");
+});
+window.addEventListener("mousemove", (e) => {
+  if (!dgDragging) return;
+  dgX += e.clientX - dgLastX;
+  dgY += e.clientY - dgLastY;
+  dgLastX = e.clientX;
+  dgLastY = e.clientY;
+  dgApply();
+});
+window.addEventListener("mouseup", () => {
+  dgDragging = false;
+  diagramStage.classList.remove("grabbing");
+});
+function dgCenterZoom(factor: number): void {
+  dgZoomAt(diagramStage.clientWidth / 2, diagramStage.clientHeight / 2, factor);
+}
+(document.getElementById("dg-zoomin") as HTMLButtonElement).addEventListener("click", () => dgCenterZoom(1.25));
+(document.getElementById("dg-zoomout") as HTMLButtonElement).addEventListener("click", () => dgCenterZoom(0.8));
+(document.getElementById("dg-reset") as HTMLButtonElement).addEventListener("click", dgFit);
+(document.getElementById("dg-close") as HTMLButtonElement).addEventListener("click", closeDiagram);
+
 // ---------- Find in document (Ctrl+F) ----------
 function openFind(): void {
   findBar.hidden = false;
@@ -818,6 +920,8 @@ window.addEventListener("keydown", (ev) => {
   } else if (ev.ctrlKey && (ev.key === "b" || ev.key === "B")) {
     ev.preventDefault();
     toggleFiles();
+  } else if (ev.key === "Escape" && !diagramModal.hidden) {
+    closeDiagram();
   } else if (ev.key === "Escape" && !findBar.hidden) {
     closeFind();
   }

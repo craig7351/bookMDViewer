@@ -395,6 +395,77 @@ body {
   display: none;
 }
 
+/* ---------- Mermaid diagram lightbox ---------- */
+.markdown-body pre.mermaid.mermaid-zoomable {
+  cursor: zoom-in;
+}
+#diagram-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.82);
+}
+#diagram-modal[hidden] {
+  display: none;
+}
+#diagram-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  cursor: grab;
+}
+#diagram-stage.grabbing {
+  cursor: grabbing;
+}
+#diagram-stage .dg-card {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  background: var(--bg);
+  padding: 20px;
+  border-radius: 10px;
+  display: inline-block;
+}
+#diagram-stage .dg-card svg {
+  display: block;
+  max-width: none;
+}
+#diagram-toolbar {
+  position: fixed;
+  top: 14px;
+  right: 16px;
+  z-index: 101;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+}
+#diagram-toolbar button {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 15px;
+  cursor: pointer;
+}
+#diagram-toolbar button:hover {
+  border-color: var(--accent);
+}
+#dg-zoom {
+  min-width: 52px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 /* ---------- About dialog ---------- */
 .empty-state .app-version {
   margin-top: 10px;
