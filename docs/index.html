@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Markdown Viewer — 輕量、完全本機的 Markdown 檢視器與編輯器</title>
+<meta name="description" content="一款輕量、完全本機的 Markdown 檢視器與編輯器，以 Tauri v2 打造。Windows 執行檔僅約 4MB，支援 Mermaid 圖表、語法高亮、即時編輯預覽與一鍵匯出 HTML。Windows / macOS / Linux。" />
+<meta property="og:title" content="Markdown Viewer" />
+<meta property="og:description" content="輕量、完全本機的 Markdown 檢視器與編輯器 — 約 4MB、Mermaid、語法高亮、即時預覽、匯出 HTML。" />
+<meta property="og:type" content="website" />
+<meta property="og:image" content="screenshots/viewer.png" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📄</text></svg>" />
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-soft: #161b22;
+    --bg-card: #1a2029;
+    --border: #2a313c;
+    --text: #e6edf3;
+    --text-dim: #9aa6b2;
+    --accent: #58a6ff;
+    --accent-2: #7ee787;
+    --accent-grad: linear-gradient(135deg, #58a6ff 0%, #7c5cff 100%);
+    --shadow: 0 10px 40px rgba(0,0,0,.4);
+    --radius: 14px;
+    --maxw: 1080px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #ffffff;
+      --bg-soft: #f6f8fa;
+      --bg-card: #ffffff;
+      --border: #e2e6eb;
+      --text: #1f2328;
+      --text-dim: #5a6570;
+      --shadow: 0 10px 40px rgba(20,30,60,.10);
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+  body {
+    font-family: -apple-system, "Segoe UI", "PingFang TC", "Microsoft JhengHei", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 20px; }
+
+  /* NAV */
+  header.nav {
+    position: sticky; top: 0; z-index: 50;
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    backdrop-filter: saturate(160%) blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-inner { display: flex; align-items: center; gap: 18px; height: 62px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.05rem; color: var(--text); }
+  .brand .logo { font-size: 1.5rem; }
+  .nav-links { display: flex; gap: 22px; margin-left: auto; align-items: center; }
+  .nav-links a { color: var(--text-dim); font-size: .95rem; font-weight: 500; }
+  .nav-links a:hover { color: var(--text); text-decoration: none; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 18px; border-radius: 10px; font-weight: 600; font-size: .95rem;
+    border: 1px solid var(--border); color: var(--text); background: var(--bg-soft);
+    cursor: pointer; transition: transform .12s ease, box-shadow .12s ease, opacity .12s;
+  }
+  .btn:hover { text-decoration: none; transform: translateY(-1px); }
+  .btn.primary { background: var(--accent-grad); color: #fff; border: none; box-shadow: 0 6px 20px rgba(88,166,255,.35); }
+  .btn.ghost { background: transparent; }
+  #langToggle { padding: 7px 12px; font-size: .85rem; }
+  .nav-toggle-mobile { display: none; }
+
+  /* HERO */
+  .hero { padding: 86px 0 70px; text-align: center; position: relative; overflow: hidden; }
+  .hero::before {
+    content: ""; position: absolute; inset: 0; z-index: -1;
+    background:
+      radial-gradient(60% 50% at 50% -10%, rgba(124,92,255,.18), transparent 70%),
+      radial-gradient(40% 40% at 80% 10%, rgba(126,231,135,.10), transparent 70%);
+  }
+  .badge {
+    display: inline-block; padding: 6px 14px; border-radius: 999px;
+    background: var(--bg-soft); border: 1px solid var(--border);
+    color: var(--text-dim); font-size: .82rem; font-weight: 600; margin-bottom: 22px;
+  }
+  .hero h1 { font-size: clamp(2.1rem, 5vw, 3.4rem); line-height: 1.2; font-weight: 800; letter-spacing: -.02em; }
+  .hero h1 .grad { background: var(--accent-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .hero p.lead { max-width: 720px; margin: 22px auto 0; font-size: clamp(1.02rem, 2vw, 1.18rem); color: var(--text-dim); }
+  .hero-cta { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-top: 34px; }
+  .hero .platforms { margin-top: 26px; color: var(--text-dim); font-size: .9rem; display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; }
+  .hero .platforms b { color: var(--text); }
+
+  /* SECTION */
+  section { padding: 72px 0; }
+  section.alt { background: var(--bg-soft); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .section-head { text-align: center; max-width: 680px; margin: 0 auto 48px; }
+  .section-head h2 { font-size: clamp(1.6rem, 3.5vw, 2.3rem); font-weight: 800; letter-spacing: -.01em; }
+  .section-head p { color: var(--text-dim); margin-top: 12px; font-size: 1.05rem; }
+
+  /* FEATURES */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 26px 22px; transition: transform .15s ease, border-color .15s;
+  }
+  .card:hover { transform: translateY(-3px); border-color: var(--accent); }
+  .card .ico { font-size: 1.9rem; }
+  .card h3 { margin: 14px 0 8px; font-size: 1.12rem; }
+  .card p { color: var(--text-dim); font-size: .96rem; }
+
+  /* SHOTS */
+  .shots { display: grid; gap: 48px; }
+  .shot { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; align-items: center; }
+  .shot.rev .shot-text { order: 2; }
+  .shot-text h3 { font-size: 1.4rem; margin-bottom: 12px; }
+  .shot-text p { color: var(--text-dim); }
+  .shot img {
+    width: 100%; border-radius: var(--radius); border: 1px solid var(--border);
+    box-shadow: var(--shadow); display: block;
+  }
+
+  /* DOWNLOAD */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+  table { width: 100%; border-collapse: collapse; font-size: .96rem; }
+  th, td { text-align: left; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+  th { background: var(--bg-soft); font-weight: 700; }
+  tr:last-child td { border-bottom: none; }
+  td code { background: var(--bg-soft); padding: 3px 7px; border-radius: 6px; font-size: .85em; }
+  .note { margin-top: 18px; padding: 16px 18px; border-left: 3px solid var(--accent); background: var(--bg-soft); border-radius: 0 10px 10px 0; color: var(--text-dim); font-size: .95rem; }
+  .dl-center { text-align: center; margin-bottom: 34px; }
+
+  /* STEPS + KEYS */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+  .steps { list-style: none; counter-reset: s; }
+  .steps li { counter-increment: s; position: relative; padding: 0 0 22px 52px; }
+  .steps li::before {
+    content: counter(s); position: absolute; left: 0; top: 0;
+    width: 34px; height: 34px; border-radius: 50%; background: var(--accent-grad); color: #fff;
+    display: grid; place-items: center; font-weight: 700;
+  }
+  .steps li:not(:last-child)::after { content: ""; position: absolute; left: 16px; top: 38px; bottom: 6px; width: 2px; background: var(--border); }
+  .steps li h4 { font-size: 1.05rem; }
+  .steps li p { color: var(--text-dim); font-size: .95rem; }
+  .keys { display: flex; flex-direction: column; gap: 10px; }
+  .keyrow { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px dashed var(--border); }
+  .keyrow:last-child { border-bottom: none; }
+  .keyrow span { color: var(--text-dim); font-size: .95rem; }
+  kbd {
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: .82rem;
+    background: var(--bg-soft); border: 1px solid var(--border); border-bottom-width: 2px;
+    padding: 3px 8px; border-radius: 6px; color: var(--text); white-space: nowrap;
+  }
+
+  /* SECURITY */
+  .sec-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 18px; }
+
+  /* FOOTER */
+  footer { padding: 46px 0; border-top: 1px solid var(--border); color: var(--text-dim); font-size: .9rem; text-align: center; }
+  footer a { color: var(--text-dim); text-decoration: underline; }
+  footer .ft-links { display: flex; gap: 20px; justify-content: center; margin-bottom: 14px; }
+
+  @media (max-width: 860px) {
+    .grid, .sec-grid { grid-template-columns: 1fr; }
+    .shot, .shot.rev .shot-text, .two-col { grid-template-columns: 1fr; }
+    .shot.rev .shot-text { order: 0; }
+    .nav-links a:not(.btn) { display: none; }
+  }
+  [data-en] { display: none; }
+  html[lang="en"] [data-zh] { display: none; }
+  html[lang="en"] [data-en] { display: revert; }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="#top"><span class="logo">📄</span><span>Markdown Viewer</span></a>
+    <nav class="nav-links">
+      <a href="#features"><span data-zh>功能</span><span data-en>Features</span></a>
+      <a href="#shots"><span data-zh>截圖</span><span data-en>Screenshots</span></a>
+      <a href="#download"><span data-zh>下載</span><span data-en>Download</span></a>
+      <a href="https://github.com/craig7351/bookMDViewer" target="_blank" rel="noopener">GitHub</a>
+      <button class="btn ghost" id="langToggle" type="button">EN</button>
+      <a class="btn primary" href="https://github.com/craig7351/bookMDViewer/releases/latest" target="_blank" rel="noopener">
+        <span data-zh>下載</span><span data-en>Download</span>
+      </a>
+    </nav>
+  </div>
+</header>
+
+<a id="top"></a>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap">
+    <span class="badge">⚡ Tauri v2 · <span data-zh>Windows 執行檔約 4 MB</span><span data-en>~4 MB on Windows</span></span>
+    <h1>
+      <span data-zh>雙擊 <span class="grad">.md</span>，瞬間漂亮渲染</span>
+      <span data-en>Double-click <span class="grad">.md</span>, instantly beautiful</span>
+    </h1>
+    <p class="lead">
+      <span data-zh>一款<b>輕量、完全本機</b>的 Markdown 檢視器與編輯器。使用作業系統內建的 WebView 而非內嵌整個 Chromium —— 因此執行檔僅約 4 MB、閒置記憶體約 30–60 MB。沒有雲端、沒有遙測，全部離線運作。</span>
+      <span data-en>A <b>lightweight, fully-local</b> Markdown viewer & editor. It uses the OS-native WebView instead of bundling Chromium — so the binary is just ~4 MB and idle RAM ~30–60 MB. No cloud, no telemetry, fully offline.</span>
+    </p>
+    <div class="hero-cta">
+      <a class="btn primary" href="https://github.com/craig7351/bookMDViewer/releases/latest" target="_blank" rel="noopener">
+        ⬇ <span data-zh>下載最新版</span><span data-en>Download latest</span>
+      </a>
+      <a class="btn ghost" href="https://github.com/craig7351/bookMDViewer" target="_blank" rel="noopener">
+        ★ <span data-zh>GitHub 原始碼</span><span data-en>Source on GitHub</span>
+      </a>
+    </div>
+    <div class="platforms">
+      <span><b>Windows</b> · WebView2</span>
+      <span><b>macOS</b> · WKWebView</span>
+      <span><b>Linux</b> · WebKitGTK</span>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features" class="alt">
+  <div class="wrap">
+    <div class="section-head">
+      <h2><span data-zh>為什麼好用</span><span data-en>Why it's great</span></h2>
+      <p><span data-zh>該有的渲染功能一個不少，又保持極致輕量。</span><span data-en>Everything you'd want to render, while staying extremely light.</span></p>
+    </div>
+    <div class="grid">
+      <div class="card"><div class="ico">📑</div>
+        <h3><span data-zh>大綱 / TOC 側欄</span><span data-en>Outline / TOC sidebar</span></h3>
+        <p><span data-zh>依標題自動建立，捲動時高亮目前章節，<kbd>Ctrl+\</kbd> 可收合。</span><span data-en>Auto-built from headings, highlights the current section while scrolling, collapse with <kbd>Ctrl+\</kbd>.</span></p>
+      </div>
+      <div class="card"><div class="ico">✍️</div>
+        <h3><span data-zh>即時編輯與預覽</span><span data-en>Live edit & preview</span></h3>
+        <p><span data-zh>分割編輯器、左右同步捲動（<kbd>Ctrl+E</kbd>），<kbd>Ctrl+S</kbd> 存回磁碟。</span><span data-en>Split editor with synced scroll (<kbd>Ctrl+E</kbd>), save to disk with <kbd>Ctrl+S</kbd>.</span></p>
+      </div>
+      <div class="card"><div class="ico">📊</div>
+        <h3><span data-zh>Mermaid 圖表</span><span data-en>Mermaid diagrams</span></h3>
+        <p><span data-zh>延遲載入，只有文件真的含 mermaid 區塊時才付出成本；可點圖開啟縮放燈箱。</span><span data-en>Lazy-loaded — only paid for when a doc actually has a mermaid block. Click to open a zoom/pan lightbox.</span></p>
+      </div>
+      <div class="card"><div class="ico">🌈</div>
+        <h3><span data-zh>語法高亮</span><span data-en>Syntax highlighting</span></h3>
+        <p><span data-zh>程式碼區塊以 highlight.js 上色；表格、任務清單、刪除線等 GFM 全支援。</span><span data-en>Code blocks via highlight.js; full GFM — tables, task lists, strikethrough.</span></p>
+      </div>
+      <div class="card"><div class="ico">📤</div>
+        <h3><span data-zh>匯出 HTML</span><span data-en>Export to HTML</span></h3>
+        <p><span data-zh>在原檔旁產生單一自包含 .html，內含大綱、語法高亮與內嵌的 Mermaid SVG。</span><span data-en>Produces a single self-contained .html next to the source — outline, highlighting and inline Mermaid SVG included.</span></p>
+      </div>
+      <div class="card"><div class="ico">🔁</div>
+        <h3><span data-zh>即時重載 + 檔案關聯</span><span data-en>Live reload + file assoc.</span></h3>
+        <p><span data-zh>監看開啟中的檔案，存檔後自動重新渲染；雙擊或拖放 .md 即可開啟。</span><span data-en>Watches the open file and re-renders on save; double-click or drag-and-drop any .md.</span></p>
+      </div>
+      <div class="card"><div class="ico">🛡️</div>
+        <h3><span data-zh>安全沙箱</span><span data-en>Safe by default</span></h3>
+        <p><span data-zh>渲染後 HTML 經 DOMPurify 清理並套用嚴格 CSP，打開不信任文件也不會執行惡意腳本。</span><span data-en>Rendered HTML is sanitized with DOMPurify under a strict CSP — untrusted docs can't run scripts.</span></p>
+      </div>
+      <div class="card"><div class="ico">🏷️</div>
+        <h3><span data-zh>YAML Front Matter</span><span data-en>YAML front matter</span></h3>
+        <p><span data-zh>開頭的 --- 區塊渲染成漂亮的 metadata 卡片（標題、描述、日期、標籤、Draft 徽章）。</span><span data-en>The leading --- block renders as a tidy metadata card (title, description, date, tags, Draft badge).</span></p>
+      </div>
+      <div class="card"><div class="ico">🌓</div>
+        <h3><span data-zh>深色 / 淺色主題</span><span data-en>Dark / light theme</span></h3>
+        <p><span data-zh>跟隨系統設定自動切換；本機相對路徑圖片正確顯示，外部連結以預設瀏覽器開啟。</span><span data-en>Follows the system setting; local relative-path images render, external links open in your browser.</span></p>
+      </div>
+      <div class="card"><div class="ico">🔍</div>
+        <h3><span data-zh>搜尋與最近清單</span><span data-en>Search & recents</span></h3>
+        <p><span data-zh>文件內搜尋（<kbd>Ctrl+F</kbd>）、開啟檔案對話框（<kbd>Ctrl+O</kbd>）與最近開啟清單。</span><span data-en>In-document search (<kbd>Ctrl+F</kbd>), open dialog (<kbd>Ctrl+O</kbd>) and a recent-files list.</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SCREENSHOTS -->
+<section id="shots">
+  <div class="wrap">
+    <div class="section-head">
+      <h2><span data-zh>實際畫面</span><span data-en>Actual screens</span></h2>
+      <p><span data-zh>閱讀與編輯，兩種模式一鍵切換。</span><span data-en>Read and edit — one keystroke apart.</span></p>
+    </div>
+    <div class="shots">
+      <div class="shot">
+        <div class="shot-text">
+          <h3><span data-zh>閱讀模式 —— 大綱 + 渲染後的 Markdown</span><span data-en>Reading mode — outline + rendered Markdown</span></h3>
+          <p><span data-zh>左側的章節大綱依文件標題自動產生；點任一項即可跳轉，並會高亮你目前正在閱讀的章節。</span><span data-en>The left-side outline is built automatically from headings — click to jump, and it highlights the section you're currently reading.</span></p>
+        </div>
+        <img src="screenshots/viewer.png" alt="閱讀模式與大綱側欄 / Reading mode with outline sidebar" loading="lazy" />
+      </div>
+      <div class="shot rev">
+        <div class="shot-text">
+          <h3><span data-zh>編輯模式 —— 即時編輯與預覽</span><span data-en>Editing mode — live edit & preview</span></h3>
+          <p><span data-zh>按 Edit（或 <kbd>Ctrl+E</kbd>）開啟分割編輯器。預覽隨輸入即時更新，左右兩欄同步捲動，<kbd>Ctrl+S</kbd> 存回磁碟。</span><span data-en>Press Edit (or <kbd>Ctrl+E</kbd>) for a split editor. The preview updates as you type, both panes scroll in sync, and <kbd>Ctrl+S</kbd> saves to disk.</span></p>
+        </div>
+        <img src="screenshots/editor.png" alt="編輯模式與即時預覽 / Editing mode with live preview" loading="lazy" />
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DOWNLOAD -->
+<section id="download" class="alt">
+  <div class="wrap">
+    <div class="section-head">
+      <h2><span data-zh>下載安裝</span><span data-en>Download & install</span></h2>
+      <p><span data-zh>到 Releases 頁面取得最新版本，所有平台皆有對應檔案。</span><span data-en>Grab the latest build from Releases — binaries for every platform.</span></p>
+    </div>
+    <div class="dl-center">
+      <a class="btn primary" href="https://github.com/craig7351/bookMDViewer/releases/latest" target="_blank" rel="noopener">
+        ⬇ <span data-zh>前往 Releases 下載</span><span data-en>Go to Releases</span>
+      </a>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th><span data-zh>平台</span><span data-en>Platform</span></th>
+            <th><span data-zh>檔案</span><span data-en>File</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><span data-zh>Windows（免安裝可攜版）</span><span data-en>Windows (portable)</span></td><td><code>Markdown.Viewer_*_x64_portable.exe</code></td></tr>
+          <tr><td><span data-zh>Windows（安裝版）</span><span data-en>Windows (installer)</span></td><td><code>*_x64-setup.exe</code> / <code>*_x64_en-US.msi</code></td></tr>
+          <tr><td>macOS (Apple Silicon / Intel)</td><td><code>*_aarch64.dmg</code> / <code>*_x64.dmg</code></td></tr>
+          <tr><td>Linux</td><td><code>*_amd64.AppImage</code> · <code>*_amd64.deb</code> · <code>*.x86_64.rpm</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <span data-zh><b>說明：</b>安裝版會註冊 <code>.md</code> 檔案關聯（雙擊即可開啟）；可攜版免安裝即可執行，但不更改檔案關聯。所有版本都需要系統內建的 WebView（Windows 11 已預載 WebView2）。macOS 首次開啟若被攔下，可右鍵「開啟」，或於終端機執行 <code>xattr -cr "/Applications/Markdown Viewer.app"</code> 解除隔離。</span>
+      <span data-en><b>Note:</b> the installer registers the <code>.md</code> file association (double-click to open); the portable build runs without installing but won't change associations. All builds need the OS-native WebView (WebView2 ships with Windows 11). On first launch macOS may block the app — right-click → Open, or run <code>xattr -cr "/Applications/Markdown Viewer.app"</code> to clear quarantine.</span>
+    </div>
+  </div>
+</section>
+
+<!-- QUICK START + KEYS -->
+<section id="start">
+  <div class="wrap">
+    <div class="section-head">
+      <h2><span data-zh>三步上手</span><span data-en>Up and running in 3 steps</span></h2>
+    </div>
+    <div class="two-col">
+      <ol class="steps">
+        <li>
+          <h4><span data-zh>下載並執行</span><span data-en>Download & run</span></h4>
+          <p><span data-zh>取得對應平台的檔案，可攜版雙擊即開，無需安裝。</span><span data-en>Get the build for your platform — the portable one opens with a double-click, no install.</span></p>
+        </li>
+        <li>
+          <h4><span data-zh>開啟 Markdown</span><span data-en>Open a Markdown file</span></h4>
+          <p><span data-zh>雙擊任何 .md 檔、把檔案拖進視窗，或按 <kbd>Ctrl+O</kbd> 開啟對話框。</span><span data-en>Double-click any .md, drag a file into the window, or press <kbd>Ctrl+O</kbd>.</span></p>
+        </li>
+        <li>
+          <h4><span data-zh>閱讀、編輯、匯出</span><span data-en>Read, edit, export</span></h4>
+          <p><span data-zh>用大綱導覽，<kbd>Ctrl+E</kbd> 進編輯模式，需要分享時一鍵匯出自包含 HTML。</span><span data-en>Navigate via the outline, hit <kbd>Ctrl+E</kbd> to edit, and export a self-contained HTML when you need to share.</span></p>
+        </li>
+      </ol>
+      <div>
+        <h3 style="margin-bottom:16px;"><span data-zh>鍵盤快捷鍵</span><span data-en>Keyboard shortcuts</span></h3>
+        <div class="keys">
+          <div class="keyrow"><kbd>Ctrl+O</kbd><span data-zh>開啟檔案</span><span data-en>Open file</span></div>
+          <div class="keyrow"><kbd>Ctrl+F</kbd><span data-zh>文件內搜尋</span><span data-en>Find in document</span></div>
+          <div class="keyrow"><kbd>Ctrl+E</kbd><span data-zh>切換編輯 / 預覽</span><span data-en>Toggle edit / preview</span></div>
+          <div class="keyrow"><kbd>Ctrl+S</kbd><span data-zh>存檔</span><span data-en>Save</span></div>
+          <div class="keyrow"><kbd>Ctrl+\</kbd><span data-zh>切換大綱側欄</span><span data-en>Toggle outline sidebar</span></div>
+          <div class="keyrow"><kbd>Ctrl++</kbd> / <kbd>Ctrl+-</kbd><span data-zh>字型放大 / 縮小</span><span data-en>Zoom font in / out</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECURITY -->
+<section id="security" class="alt">
+  <div class="wrap">
+    <div class="section-head">
+      <h2><span data-zh>安全與透明</span><span data-en>Security & transparency</span></h2>
+      <p><span data-zh>開源、可稽核、完全離線 —— 你的文件永遠不離開這台電腦。</span><span data-en>Open-source, auditable, fully offline — your files never leave your machine.</span></p>
+    </div>
+    <div class="sec-grid">
+      <div class="card"><div class="ico">🔓</div>
+        <h3><span data-zh>開源建置</span><span data-en>Built in the open</span></h3>
+        <p><span data-zh>所有安裝檔皆由 GitHub Actions 直接從公開原始碼自動建置，建置流程公開可查。</span><span data-en>Every installer is built by GitHub Actions directly from the public source — the pipeline is fully visible.</span></p>
+      </div>
+      <div class="card"><div class="ico">📴</div>
+        <h3><span data-zh>零雲端 / 零遙測</span><span data-en>No cloud, no telemetry</span></h3>
+        <p><span data-zh>不連線、不上傳、不追蹤。Markdown 在本機渲染，完全離線運作。</span><span data-en>No connections, no uploads, no tracking. Markdown is rendered locally, entirely offline.</span></p>
+      </div>
+      <div class="card"><div class="ico">🧼</div>
+        <h3><span data-zh>嚴格 CSP + 清理</span><span data-en>Strict CSP + sanitizing</span></h3>
+        <p><span data-zh>渲染輸出經 DOMPurify 清理並套用嚴格 CSP，打開不信任文件也安全。</span><span data-en>Rendered output is DOMPurify-sanitized under a strict CSP, so untrusted docs stay safe.</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="wrap">
+    <div class="ft-links">
+      <a href="https://github.com/craig7351/bookMDViewer" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/craig7351/bookMDViewer/releases/latest" target="_blank" rel="noopener"><span data-zh>下載</span><span data-en>Download</span></a>
+      <a href="https://github.com/craig7351/bookMDViewer/blob/main/LICENSE" target="_blank" rel="noopener">License</a>
+    </div>
+    <div>
+      <span data-zh>Markdown Viewer · 以 Tauri v2 打造 · 採 MIT 授權。本頁為專案介紹，內容皆離線本機運作。</span>
+      <span data-en>Markdown Viewer · built with Tauri v2 · MIT licensed. This page introduces the project; everything runs locally and offline.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  (function () {
+    var html = document.documentElement;
+    var btn = document.getElementById('langToggle');
+    function apply(lang) {
+      html.lang = lang;
+      btn.textContent = lang === 'en' ? '中' : 'EN';
+      try { localStorage.setItem('mdv-lang', lang); } catch (e) {}
+    }
+    var saved;
+    try { saved = localStorage.getItem('mdv-lang'); } catch (e) {}
+    apply(saved === 'en' ? 'en' : 'zh-Hant');
+    btn.addEventListener('click', function () {
+      apply(html.lang === 'en' ? 'zh-Hant' : 'en');
+    });
+  })();
+</script>
+</body>
+</html>
