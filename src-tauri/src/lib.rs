@@ -127,6 +127,17 @@ fn read_md(path: String) -> Result<String, String> {
     std::fs::read_to_string(&path).map_err(|e| format!("Failed to read {path}: {e}"))
 }
 
+/// Open a file in a brand-new application window (spawns another instance).
+#[tauri::command]
+fn open_new_window(path: String) -> Result<(), String> {
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    std::process::Command::new(exe)
+        .arg(path)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 /// Write text back to a markdown file.
 #[tauri::command]
 fn write_md(path: String, content: String) -> Result<(), String> {
@@ -189,6 +200,7 @@ pub fn run() {
             read_md,
             write_md,
             list_dir,
+            open_new_window,
             watch_file
         ])
         .build(tauri::generate_context!())

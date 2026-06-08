@@ -666,7 +666,7 @@ function fileRow(
   label: string,
   icon: string,
   onClick: () => void,
-  opts: { active?: boolean; muted?: boolean } = {},
+  opts: { active?: boolean; muted?: boolean; onContext?: (ev: MouseEvent) => void } = {},
 ): HTMLElement {
   const a = document.createElement("a");
   a.className = "file-item";
@@ -684,8 +684,37 @@ function fileRow(
     ev.preventDefault();
     onClick();
   });
+  if (opts.onContext) a.addEventListener("contextmenu", opts.onContext);
   return a;
 }
+
+// Right-click context menu for files.
+let fileMenuEl: HTMLElement | null = null;
+function closeFileMenu(): void {
+  fileMenuEl?.remove();
+  fileMenuEl = null;
+}
+function showFileMenu(ev: MouseEvent, path: string): void {
+  ev.preventDefault();
+  closeFileMenu();
+  const menu = document.createElement("div");
+  menu.className = "ctx-menu";
+  const item = document.createElement("button");
+  item.textContent = "在新視窗開啟";
+  item.addEventListener("click", () => {
+    closeFileMenu();
+    void invoke("open_new_window", { path });
+  });
+  menu.appendChild(item);
+  document.body.appendChild(menu);
+  // Keep within the viewport.
+  const mw = 180;
+  menu.style.left = `${Math.min(ev.clientX, window.innerWidth - mw)}px`;
+  menu.style.top = `${ev.clientY}px`;
+  fileMenuEl = menu;
+}
+window.addEventListener("click", closeFileMenu);
+window.addEventListener("blur", closeFileMenu);
 
 async function renderFiles(dir: string | null): Promise<void> {
   if (!dir) {
@@ -741,6 +770,7 @@ async function renderFiles(dir: string | null): Promise<void> {
       filesPanel.appendChild(
         fileRow(entry.name, "📄", () => switchToFile(entry.path), {
           active: entry.path === currentPath,
+          onContext: (ev) => showFileMenu(ev, entry.path),
         }),
       );
     }

@@ -177,6 +177,32 @@ body {
   text-overflow: ellipsis;
 }
 
+.ctx-menu {
+  position: fixed;
+  z-index: 200;
+  min-width: 160px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+}
+.ctx-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 12px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--fg);
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.ctx-menu button:hover {
+  background: var(--code-bg);
+}
+
 #toolbar {
   position: fixed;
   top: 10px;
