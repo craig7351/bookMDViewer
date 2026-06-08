@@ -57,14 +57,31 @@ Grab the latest build from the [**Releases**](https://github.com/craig7351/bookM
 
 | Platform | File |
 | --- | --- |
+| Windows (installer, **recommended**) | `Markdown.Viewer_*_x64-setup.exe` or `*_x64_en-US.msi` |
 | Windows (portable, no install) | `Markdown.Viewer_*_x64_portable.exe` |
-| Windows (installer) | `Markdown.Viewer_*_x64-setup.exe` or `*_x64_en-US.msi` |
 | macOS (Apple Silicon / Intel) | `*_aarch64.dmg` / `*_x64.dmg` |
 | Linux | `*_amd64.AppImage`, `*_amd64.deb`, `*.x86_64.rpm` |
 
 > The installer registers the `.md` file association (double-click to open). The
 > portable build runs without installing but won't change file associations.
 > All builds require the system WebView (WebView2 is preinstalled on Windows 11).
+
+### Antivirus false positive (Windows)
+
+This is open-source software and the exe is **not code-signed yet**, so Windows
+Defender or SmartScreen may occasionally flag it as a "potentially unwanted
+program (PUA)" such as `Program:Win32/Wacapew.A!ml`. This is a **false positive**,
+not actual malware — the `!ml` suffix means it's a machine-learning *heuristic*
+guess, not a signature match.
+
+- **Prefer the installer build** — it tends to be flagged less often than the
+  portable single-file exe.
+- Every binary is built by GitHub Actions straight from public source. You can
+  verify any exe yourself on [VirusTotal](https://www.virustotal.com) (a typical
+  false positive shows only a few of dozens of engines flagging it, all with
+  heuristic names like `!ml` / `PUA` / `Generic`).
+- If blocked, choose **Allow / Restore** in the notification, or restore it under
+  **Windows Security → Virus & threat protection → Protection history**.
 
 ### Opening on macOS for the first time (important)
 

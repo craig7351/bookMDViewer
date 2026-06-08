@@ -54,13 +54,27 @@ Mermaid 圖表、可即時預覽的編輯器,以及一鍵匯出成自包含的 H
 
 | 平台 | 檔案 |
 | --- | --- |
+| Windows(安裝版,**推薦**) | `Markdown.Viewer_*_x64-setup.exe` 或 `*_x64_en-US.msi` |
 | Windows(免安裝可攜版) | `Markdown.Viewer_*_x64_portable.exe` |
-| Windows(安裝版) | `Markdown.Viewer_*_x64-setup.exe` 或 `*_x64_en-US.msi` |
 | macOS(Apple Silicon / Intel) | `*_aarch64.dmg` / `*_x64.dmg` |
 | Linux | `*_amd64.AppImage`、`*_amd64.deb`、`*.x86_64.rpm` |
 
 > 安裝版會註冊 `.md` 檔案關聯(雙擊即可開啟);可攜版免安裝即可執行,但不會更改
 > 檔案關聯。所有版本都需要系統內建的 WebView(Windows 11 已預載 WebView2)。
+
+### 防毒軟體誤報(Windows)
+
+本軟體為開源、且 exe **尚未經程式碼簽章(code signing)**,Windows Defender 或
+SmartScreen 偶爾會把它誤判為 `Program:Win32/Wacapew.A!ml` 之類的「潛在不需要的
+程式(PUA)」。這是**誤報**而非真的惡意程式 —— 名稱中的 `!ml` 代表這是機器學習的
+*推測性*判斷,而非病毒特徵碼比對。
+
+- **建議優先下載「安裝版」**,誤報機率通常比免安裝可攜版低。
+- 所有安裝檔都由 GitHub Actions 直接從公開原始碼自動建置,你可自行把 exe 丟到
+  [VirusTotal](https://www.virustotal.com) 驗證(典型誤報的特徵是:數十家引擎中
+  僅少數報、且都是 `!ml` / `PUA` / `Generic` 這類啟發式名稱)。
+- 若被攔下,可在通知中按「允許 / 還原」,或到 **Windows 安全性 → 病毒與威脅防護
+  → 保護歷程記錄** 將它還原。
 
 ### macOS 首次開啟(重要)
 

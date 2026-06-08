@@ -322,8 +322,8 @@
           </tr>
         </thead>
         <tbody>
+          <tr><td><span data-zh>Windows（安裝版 · 推薦）</span><span data-en>Windows (installer · recommended)</span></td><td><code>*_x64-setup.exe</code> / <code>*_x64_en-US.msi</code></td></tr>
           <tr><td><span data-zh>Windows（免安裝可攜版）</span><span data-en>Windows (portable)</span></td><td><code>Markdown.Viewer_*_x64_portable.exe</code></td></tr>
-          <tr><td><span data-zh>Windows（安裝版）</span><span data-en>Windows (installer)</span></td><td><code>*_x64-setup.exe</code> / <code>*_x64_en-US.msi</code></td></tr>
           <tr><td>macOS (Apple Silicon / Intel)</td><td><code>*_aarch64.dmg</code> / <code>*_x64.dmg</code></td></tr>
           <tr><td>Linux</td><td><code>*_amd64.AppImage</code> · <code>*_amd64.deb</code> · <code>*.x86_64.rpm</code></td></tr>
         </tbody>
@@ -332,6 +332,10 @@
     <div class="note">
       <span data-zh><b>說明：</b>安裝版會註冊 <code>.md</code> 檔案關聯（雙擊即可開啟）；可攜版免安裝即可執行，但不更改檔案關聯。所有版本都需要系統內建的 WebView（Windows 11 已預載 WebView2）。macOS 首次開啟若被攔下，可右鍵「開啟」，或於終端機執行 <code>xattr -cr "/Applications/Markdown Viewer.app"</code> 解除隔離。</span>
       <span data-en><b>Note:</b> the installer registers the <code>.md</code> file association (double-click to open); the portable build runs without installing but won't change associations. All builds need the OS-native WebView (WebView2 ships with Windows 11). On first launch macOS may block the app — right-click → Open, or run <code>xattr -cr "/Applications/Markdown Viewer.app"</code> to clear quarantine.</span>
+    </div>
+    <div class="note" style="border-left-color:#e3b341;">
+      <span data-zh><b>⚠️ 防毒軟體誤報：</b>本軟體為開源、且 exe <b>尚未經程式碼簽章</b>，Windows Defender 或 SmartScreen 偶爾會把它誤判為 <code>Program:Win32/Wacapew.A!ml</code> 之類的「潛在不需要的程式」。這是<b>誤報</b>（名稱中的 <code>!ml</code> 代表是機器學習的推測性判斷，非病毒特徵比對），並非真的惡意程式。<b>建議優先下載「安裝版」</b>，誤報機率通常較免安裝可攜版低。所有安裝檔都由 GitHub Actions 直接從公開原始碼自動建置，你可自行用 <a href="https://www.virustotal.com" target="_blank" rel="noopener">VirusTotal</a> 驗證。若被攔下，可在通知中按「允許 / 還原」，或於「Windows 安全性 → 保護歷程記錄」還原。</span>
+      <span data-en><b>⚠️ Antivirus false positive:</b> this is open-source software and the exe is <b>not yet code-signed</b>, so Windows Defender / SmartScreen may occasionally flag it as a "potentially unwanted program" like <code>Program:Win32/Wacapew.A!ml</code>. This is a <b>false positive</b> (the <code>!ml</code> suffix means a machine-learning heuristic guess, not a signature match), not actual malware. <b>Prefer the installer build</b> — it tends to be flagged less often than the portable single-file exe. Every binary is built by GitHub Actions straight from public source; you can verify it yourself on <a href="https://www.virustotal.com" target="_blank" rel="noopener">VirusTotal</a>. If blocked, choose "Allow / Restore" in the notification, or restore it under Windows Security → Protection history.</span>
     </div>
   </div>
 </section>
