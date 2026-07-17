@@ -145,6 +145,38 @@ function buildToc(): void {
   headings.forEach((h) => spy!.observe(h));
 }
 
+// Add a "copy" button to each highlighted code block (skips mermaid diagrams).
+function addCopyButtons(): void {
+  content
+    .querySelectorAll<HTMLPreElement>("pre.hljs")
+    .forEach((pre) => {
+      if (pre.querySelector(".copy-btn")) return; // already added
+      pre.classList.add("has-copy");
+      const btn = document.createElement("button");
+      btn.className = "copy-btn";
+      btn.type = "button";
+      btn.title = "複製";
+      btn.setAttribute("aria-label", "複製程式碼");
+      btn.textContent = "📋";
+      btn.addEventListener("click", async (ev) => {
+        ev.stopPropagation();
+        const code = pre.querySelector("code")?.textContent ?? "";
+        try {
+          await navigator.clipboard.writeText(code);
+          btn.textContent = "✓";
+          btn.classList.add("copied");
+          window.setTimeout(() => {
+            btn.textContent = "📋";
+            btn.classList.remove("copied");
+          }, 1400);
+        } catch {
+          toast("複製失敗");
+        }
+      });
+      pre.appendChild(btn);
+    });
+}
+
 // Resolve relative-path images against the open file's folder via the asset protocol.
 function resolveImages(): void {
   if (!currentPath) return;
@@ -264,6 +296,7 @@ async function renderMarkdown(
   });
   await renderFrontMatter();
   resolveImages();
+  addCopyButtons();
   buildToc();
 
   // Lazily pull in mermaid only when a diagram is actually present.
@@ -437,6 +470,8 @@ body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,Bli
 function buildExportHtml(): string {
   // Clone so we don't mutate the live DOM.
   const article = content.cloneNode(true) as HTMLElement;
+  // Copy buttons are UI-only — strip them from the exported document.
+  article.querySelectorAll(".copy-btn").forEach((b) => b.remove());
   const headings = Array.from(
     article.querySelectorAll<HTMLElement>("h1, h2, h3"),
   );

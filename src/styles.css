@@ -671,6 +671,39 @@ body {
   font-size: 90%;
 }
 
+/* Copy-to-clipboard button on code blocks */
+.markdown-body pre.has-copy {
+  position: relative;
+}
+.markdown-body pre .copy-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 2px 7px;
+  font-size: 13px;
+  line-height: 1.4;
+  cursor: pointer;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.markdown-body pre.has-copy:hover .copy-btn,
+.markdown-body pre .copy-btn:focus-visible {
+  opacity: 1;
+}
+.markdown-body pre .copy-btn:hover {
+  color: var(--fg);
+  border-color: var(--muted);
+}
+.markdown-body pre .copy-btn.copied {
+  opacity: 1;
+  color: #1a7f37;
+  border-color: #1a7f37;
+}
+
 .markdown-body blockquote {
   margin: 0;
   padding: 0 1em;
