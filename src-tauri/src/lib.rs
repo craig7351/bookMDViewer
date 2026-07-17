@@ -73,6 +73,22 @@ struct AppState {
     ready: Mutex<bool>,
     /// macOS file-open requests received before the frontend was ready.
     pending: Mutex<Vec<String>>,
+    /// True once the initial window has been given a document. On macOS (which
+    /// is single-instance) every *subsequent* file-open opens its own window
+    /// instead of replacing the current document — matching Windows/Linux.
+    claimed: Mutex<bool>,
+}
+
+/// Route a file-open request: the first file loads into the existing (empty)
+/// window; any later file spawns a new instance so it gets its own window.
+fn route_open(app: &tauri::AppHandle, state: &AppState, path: String) {
+    let mut claimed = state.claimed.lock().unwrap();
+    if !*claimed {
+        *claimed = true;
+        let _ = app.emit("open-file", path);
+    } else if let Ok(exe) = std::env::current_exe() {
+        let _ = std::process::Command::new(exe).arg(path).spawn();
+    }
 }
 
 /// Pull a markdown file path out of the process arguments (set when the OS
@@ -106,7 +122,7 @@ fn frontend_ready(app: tauri::AppHandle, state: State<AppState>) {
     *state.ready.lock().unwrap() = true;
     let pending: Vec<String> = state.pending.lock().unwrap().drain(..).collect();
     for path in pending {
-        let _ = app.emit("open-file", path);
+        route_open(&app, state.inner(), path);
     }
 }
 
@@ -219,7 +235,7 @@ pub fn run() {
                         if let Ok(p) = url.to_file_path() {
                             let s = p.to_string_lossy().into_owned();
                             if ready {
-                                let _ = app.emit("open-file", s);
+                                route_open(app, state.inner(), s);
                             } else {
                                 state.pending.lock().unwrap().push(s);
                             }
