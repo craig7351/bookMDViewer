@@ -14,14 +14,20 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import hljsLightCss from "highlight.js/styles/github.css?inline";
 import hljsDarkCss from "highlight.js/styles/github-dark.css?inline";
 
-const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+// ---------- Color theme (system / light / dark) ----------
+type ThemePref = "system" | "light" | "dark";
+const systemDarkMQ = window.matchMedia("(prefers-color-scheme: dark)");
+let themePref = (localStorage.getItem("theme") as ThemePref | null) ?? "system";
 
-// Apply the matching highlight.js theme to the live app.
-{
-  const style = document.createElement("style");
-  style.textContent = prefersDark ? hljsDarkCss : hljsLightCss;
-  document.head.appendChild(style);
+// Whether the *effective* theme is dark, given the user's preference.
+function currentDark(): boolean {
+  return themePref === "dark" || (themePref === "system" && systemDarkMQ.matches);
 }
+
+// highlight.js theme is swapped by rewriting this <style> element's contents.
+const hljsStyle = document.createElement("style");
+hljsStyle.textContent = currentDark() ? hljsDarkCss : hljsLightCss;
+document.head.appendChild(hljsStyle);
 
 let lastFrontMatter = "";
 
@@ -67,6 +73,7 @@ const exportBtn = document.getElementById("export-btn") as HTMLButtonElement;
 const fontInc = document.getElementById("font-inc") as HTMLButtonElement;
 const fontDec = document.getElementById("font-dec") as HTMLButtonElement;
 const wideToggle = document.getElementById("wide-toggle") as HTMLButtonElement;
+const themeToggle = document.getElementById("theme-toggle") as HTMLButtonElement;
 const openBtn = document.getElementById("open-btn") as HTMLButtonElement;
 const filesBtn = document.getElementById("files-btn") as HTMLButtonElement;
 const filesPanel = document.getElementById("files") as HTMLElement;
@@ -90,7 +97,6 @@ let currentText = "";
 let editMode = false;
 let dirty = false;
 let suppressReloadUntil = 0;
-let mermaidLoaded = false;
 let spy: IntersectionObserver | null = null;
 
 // Build the left-hand outline from the rendered headings.
@@ -418,14 +424,12 @@ async function renderMarkdown(
   const diagrams = content.querySelectorAll<HTMLElement>("pre.mermaid");
   if (diagrams.length > 0) {
     const mermaid = (await import("mermaid")).default;
-    if (!mermaidLoaded) {
-      mermaid.initialize({
-        startOnLoad: false,
-        theme: prefersDark ? "dark" : "default",
-        securityLevel: "strict",
-      });
-      mermaidLoaded = true;
-    }
+    // Re-initialise each render so diagrams follow the current theme.
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: currentDark() ? "dark" : "default",
+      securityLevel: "strict",
+    });
     try {
       await mermaid.run({ nodes: Array.from(diagrams) });
     } catch (e) {
@@ -616,7 +620,7 @@ function buildExportHtml(): string {
   }
 
   const title = currentPath?.split(/[\\/]/).pop()?.replace(/\.(md|markdown)$/i, "") ?? "Document";
-  const themeCss = prefersDark ? hljsDarkCss : hljsLightCss;
+  const themeCss = currentDark() ? hljsDarkCss : hljsLightCss;
 
   return `<!doctype html>
 <html lang="zh-Hant">
@@ -733,7 +737,8 @@ fontDec.addEventListener("click", () => bumpFont(-0.1));
 applyFontScale();
 
 // Wide-content mode: fill the available width instead of the centered column.
-let wideContent = localStorage.getItem("wideContent") === "true";
+// Defaults to wide when the user has no saved preference yet.
+let wideContent = (localStorage.getItem("wideContent") ?? "true") === "true";
 function applyWide(): void {
   layout.classList.toggle("wide-content", wideContent);
   wideToggle.classList.toggle("on", wideContent);
@@ -745,6 +750,41 @@ function toggleWide(): void {
 }
 wideToggle.addEventListener("click", toggleWide);
 applyWide();
+
+// Cycle the color theme: system → light → dark → system.
+const THEME_ICON: Record<ThemePref, string> = {
+  system: "🖥️",
+  light: "☀️",
+  dark: "🌙",
+};
+const THEME_TITLE: Record<ThemePref, string> = {
+  system: "主題:跟隨系統 (點擊切換)",
+  light: "主題:亮色 (點擊切換)",
+  dark: "主題:暗色 (點擊切換)",
+};
+function applyTheme(): void {
+  document.documentElement.dataset.theme = themePref;
+  hljsStyle.textContent = currentDark() ? hljsDarkCss : hljsLightCss;
+  themeToggle.textContent = THEME_ICON[themePref];
+  themeToggle.title = THEME_TITLE[themePref];
+  localStorage.setItem("theme", themePref);
+  // Re-render the open document so mermaid diagrams pick up the new theme
+  // (highlighted code recolors automatically via the swapped <style>).
+  if (currentPath) {
+    void renderMarkdown(editMode ? editor.value : currentText, true);
+  }
+}
+function cycleTheme(): void {
+  themePref =
+    themePref === "system" ? "light" : themePref === "light" ? "dark" : "system";
+  applyTheme();
+}
+themeToggle.addEventListener("click", cycleTheme);
+// Follow live OS theme changes while in "system" mode.
+systemDarkMQ.addEventListener("change", () => {
+  if (themePref === "system") applyTheme();
+});
+applyTheme();
 
 // ---------- About dialog (version info) ----------
 const REPO_URL = "https://github.com/craig7351/bookMDViewer";

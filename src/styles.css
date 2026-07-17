@@ -1,4 +1,5 @@
-:root {
+:root,
+:root[data-theme="light"] {
   --bg: #ffffff;
   --fg: #1f2328;
   --muted: #59636e;
@@ -8,6 +9,7 @@
   --table-stripe: #f6f8fa;
 }
 
+/* System dark mode — applies in "follow system" mode (and before JS runs). */
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #0d1117;
@@ -18,6 +20,17 @@
     --accent: #4493f8;
     --table-stripe: #161b22;
   }
+}
+
+/* Explicit user choice wins over the system setting (higher specificity). */
+:root[data-theme="dark"] {
+  --bg: #0d1117;
+  --fg: #e6edf3;
+  --muted: #9198a1;
+  --border: #30363d;
+  --code-bg: #161b22;
+  --accent: #4493f8;
+  --table-stripe: #161b22;
 }
 
 * {
