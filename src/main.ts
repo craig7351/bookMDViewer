@@ -66,6 +66,7 @@ const saveBtn = document.getElementById("save-btn") as HTMLButtonElement;
 const exportBtn = document.getElementById("export-btn") as HTMLButtonElement;
 const fontInc = document.getElementById("font-inc") as HTMLButtonElement;
 const fontDec = document.getElementById("font-dec") as HTMLButtonElement;
+const wideToggle = document.getElementById("wide-toggle") as HTMLButtonElement;
 const openBtn = document.getElementById("open-btn") as HTMLButtonElement;
 const filesBtn = document.getElementById("files-btn") as HTMLButtonElement;
 const filesPanel = document.getElementById("files") as HTMLElement;
@@ -606,6 +607,20 @@ fontInc.addEventListener("click", () => bumpFont(0.1));
 fontDec.addEventListener("click", () => bumpFont(-0.1));
 applyFontScale();
 
+// Wide-content mode: fill the available width instead of the centered column.
+let wideContent = localStorage.getItem("wideContent") === "true";
+function applyWide(): void {
+  layout.classList.toggle("wide-content", wideContent);
+  wideToggle.classList.toggle("on", wideContent);
+  localStorage.setItem("wideContent", String(wideContent));
+}
+function toggleWide(): void {
+  wideContent = !wideContent;
+  applyWide();
+}
+wideToggle.addEventListener("click", toggleWide);
+applyWide();
+
 // ---------- About dialog (version info) ----------
 const REPO_URL = "https://github.com/craig7351/bookMDViewer";
 const aboutModal = document.getElementById("about-modal") as HTMLElement;
@@ -973,9 +988,11 @@ function toggleToc(): void {
 }
 tocToggle.addEventListener("click", toggleToc);
 window.addEventListener("keydown", (ev) => {
-  if (ev.ctrlKey && ev.key === "\\") {
+  if (ev.ctrlKey && (ev.key === "\\" || ev.key === "|")) {
+    // Shift turns "\" into "|" on many layouts; treat both as the same chord.
     ev.preventDefault();
-    toggleToc();
+    if (ev.shiftKey) toggleWide();
+    else toggleToc();
   } else if (ev.ctrlKey && (ev.key === "e" || ev.key === "E")) {
     ev.preventDefault();
     toggleEdit();

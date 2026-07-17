@@ -266,6 +266,15 @@ body {
   max-width: none;
 }
 
+/* Wide mode: let reading content fill the available width instead of the
+   centered 860px column (useful for wide tables on large screens). */
+#layout.wide-content .markdown-body {
+  max-width: none;
+}
+#wide-toggle.on {
+  color: var(--accent);
+}
+
 /* ---------- YAML front-matter card ---------- */
 .markdown-body .fm-card {
   margin: 0 0 2em;
