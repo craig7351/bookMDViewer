@@ -720,18 +720,57 @@ body {
   border-left: 4px solid var(--border);
 }
 
+/* Horizontal-scroll wrapper (added around every table at render time). */
+.markdown-body .md-table-wrap {
+  overflow-x: auto;
+  max-width: 100%;
+  margin: 1em 0;
+}
 .markdown-body table {
   border-collapse: collapse;
-  display: block;
   width: max-content;
   max-width: 100%;
-  overflow: auto;
   margin: 1em 0;
+}
+.markdown-body .md-table-wrap > table {
+  margin: 0;
+}
+/* Once a column has been dragged, the table switches to a fixed layout so the
+   explicit <col> widths are honoured (and can be narrowed below content size). */
+.markdown-body table.resizable {
+  table-layout: fixed;
+  max-width: none;
 }
 .markdown-body th,
 .markdown-body td {
   border: 1px solid var(--border);
   padding: 6px 13px;
+  overflow-wrap: break-word;
+}
+.markdown-body th.has-resizer {
+  position: relative;
+}
+/* Drag handle straddling the header cell's right border. */
+.markdown-body .col-resizer {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 7px;
+  height: 100%;
+  cursor: col-resize;
+  user-select: none;
+  z-index: 2;
+}
+.markdown-body .col-resizer:hover {
+  background: var(--accent);
+  opacity: 0.35;
+}
+body.col-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+body.col-resizing * {
+  cursor: col-resize !important;
 }
 .markdown-body tr:nth-child(2n) {
   background: var(--table-stripe);

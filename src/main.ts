@@ -178,6 +178,119 @@ function addCopyButtons(): void {
     });
 }
 
+// ---------- Resizable table columns (drag the header borders) ----------
+const MIN_COL_W = 40;
+
+// Per-file, per-table storage key so column widths are remembered on reopen.
+function tableKey(tableIndex: number): string | null {
+  if (!currentPath) return null;
+  return `colw:${currentPath}::${tableIndex}`;
+}
+function loadColWidths(tableIndex: number): number[] | null {
+  const key = tableKey(tableIndex);
+  if (!key) return null;
+  try {
+    const arr = JSON.parse(localStorage.getItem(key) ?? "null");
+    return Array.isArray(arr) && arr.every((n) => typeof n === "number")
+      ? arr
+      : null;
+  } catch {
+    return null;
+  }
+}
+function saveColWidths(tableIndex: number, widths: number[]): void {
+  const key = tableKey(tableIndex);
+  if (!key) return;
+  localStorage.setItem(key, JSON.stringify(widths.map((w) => Math.round(w))));
+}
+
+// Give every table a drag handle on each header cell's right edge. The first
+// drag (or a stored width) switches the table to a fixed layout with an
+// explicit <colgroup>, after which columns can be widened or narrowed freely.
+function makeTablesResizable(): void {
+  content.querySelectorAll<HTMLTableElement>("table").forEach((table, tIndex) => {
+    // Wrap once for horizontal scrolling when columns exceed the viewport.
+    if (!table.parentElement?.classList.contains("md-table-wrap")) {
+      const wrap = document.createElement("div");
+      wrap.className = "md-table-wrap";
+      table.parentNode?.insertBefore(wrap, table);
+      wrap.appendChild(table);
+    }
+
+    const cells = Array.from(
+      table.querySelectorAll<HTMLTableCellElement>("thead th"),
+    );
+    if (cells.length < 1) return;
+
+    const getColgroup = (): HTMLElement => {
+      let cg = table.querySelector("colgroup");
+      if (!cg) {
+        cg = document.createElement("colgroup");
+        for (let i = 0; i < cells.length; i++) {
+          cg.appendChild(document.createElement("col"));
+        }
+        table.insertBefore(cg, table.firstChild);
+      }
+      return cg as HTMLElement;
+    };
+
+    const applyFixed = (widths: number[]): void => {
+      const cols = Array.from(getColgroup().children) as HTMLElement[];
+      widths.forEach((w, i) => {
+        if (cols[i]) cols[i].style.width = `${w}px`;
+      });
+      table.classList.add("resizable");
+      table.style.width = `${widths.reduce((a, b) => a + b, 0)}px`;
+    };
+
+    // Restore remembered widths (only if the column count still matches).
+    const stored = loadColWidths(tIndex);
+    if (stored && stored.length === cells.length) applyFixed(stored);
+
+    const ensureFixed = (): void => {
+      if (table.classList.contains("resizable")) return;
+      applyFixed(cells.map((c) => c.getBoundingClientRect().width));
+    };
+
+    cells.forEach((th, i) => {
+      th.classList.add("has-resizer");
+      const handle = document.createElement("div");
+      handle.className = "col-resizer";
+      handle.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        ensureFixed();
+        const cols = Array.from(getColgroup().children) as HTMLElement[];
+        const startX = e.clientX;
+        const startW =
+          parseFloat(cols[i].style.width) ||
+          cells[i].getBoundingClientRect().width;
+        document.body.classList.add("col-resizing");
+        const onMove = (me: MouseEvent): void => {
+          const w = Math.max(MIN_COL_W, startW + (me.clientX - startX));
+          cols[i].style.width = `${w}px`;
+          table.style.width = `${cols.reduce(
+            (a, c) => a + (parseFloat(c.style.width) || 0),
+            0,
+          )}px`;
+        };
+        const onUp = (): void => {
+          window.removeEventListener("mousemove", onMove);
+          window.removeEventListener("mouseup", onUp);
+          document.body.classList.remove("col-resizing");
+          saveColWidths(
+            tIndex,
+            cols.map((c) => parseFloat(c.style.width) || 0),
+          );
+        };
+        window.addEventListener("mousemove", onMove);
+        window.addEventListener("mouseup", onUp);
+      });
+      th.appendChild(handle);
+    });
+  });
+}
+
 // Resolve relative-path images against the open file's folder via the asset protocol.
 function resolveImages(): void {
   if (!currentPath) return;
@@ -298,6 +411,7 @@ async function renderMarkdown(
   await renderFrontMatter();
   resolveImages();
   addCopyButtons();
+  makeTablesResizable();
   buildToc();
 
   // Lazily pull in mermaid only when a diagram is actually present.
@@ -473,6 +587,17 @@ function buildExportHtml(): string {
   const article = content.cloneNode(true) as HTMLElement;
   // Copy buttons are UI-only — strip them from the exported document.
   article.querySelectorAll(".copy-btn").forEach((b) => b.remove());
+  // Strip column-resize scaffolding so exported tables use the default layout.
+  article.querySelectorAll(".col-resizer").forEach((h) => h.remove());
+  article.querySelectorAll<HTMLTableElement>("table.resizable").forEach((t) => {
+    t.classList.remove("resizable");
+    t.removeAttribute("style");
+    t.querySelector("colgroup")?.remove();
+  });
+  article.querySelectorAll(".md-table-wrap").forEach((w) => {
+    const t = w.querySelector("table");
+    if (t) w.replaceWith(t);
+  });
   const headings = Array.from(
     article.querySelectorAll<HTMLElement>("h1, h2, h3"),
   );
