@@ -6,7 +6,8 @@ import DOMPurify from "dompurify";
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrentWindow, currentMonitor } from "@tauri-apps/api/window";
+import { PhysicalSize } from "@tauri-apps/api/dpi";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 
@@ -1199,7 +1200,83 @@ content.addEventListener("click", (ev) => {
   }
 });
 
+// ---------- Window size persistence ----------
+// macOS is single-instance and, when a window's Space is re-activated, the OS
+// sometimes resizes it to fill the screen. We remember the user's size and
+// restore it on focus so switching desktops keeps the chosen width.
+interface WinSize {
+  width: number;
+  height: number;
+}
+function loadWinSize(): WinSize | null {
+  try {
+    const s = JSON.parse(localStorage.getItem("winSize") ?? "null");
+    return s && typeof s.width === "number" && typeof s.height === "number"
+      ? s
+      : null;
+  } catch {
+    return null;
+  }
+}
+function saveWinSize(width: number, height: number): void {
+  localStorage.setItem(
+    "winSize",
+    JSON.stringify({ width: Math.round(width), height: Math.round(height) }),
+  );
+}
+
+let suppressWinSaveUntil = 0;
+let winSaveTimer: number | undefined;
+let monitorWidth = 0; // cached (physical px) so the resize handler stays sync
+
+async function refreshMonitorWidth(): Promise<void> {
+  try {
+    const m = await currentMonitor();
+    if (m) monitorWidth = m.size.width;
+  } catch {
+    /* ignore */
+  }
+}
+
+async function setupWindowSize(): Promise<void> {
+  await refreshMonitorWidth();
+
+  // Restore the last size on launch.
+  const saved = loadWinSize();
+  if (saved) {
+    try {
+      await appWindow.setSize(new PhysicalSize(saved.width, saved.height));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  // Persist user resizes (debounced). Skips saving while suppressed and ignores
+  // a width that fills the monitor — that's the Spaces-switch jump, not a drag.
+  await appWindow.onResized(({ payload }) => {
+    if (Date.now() < suppressWinSaveUntil) return;
+    if (monitorWidth && payload.width >= monitorWidth - 2) return;
+    const { width, height } = payload;
+    window.clearTimeout(winSaveTimer);
+    winSaveTimer = window.setTimeout(() => saveWinSize(width, height), 300);
+  });
+
+  // On regaining focus (e.g. switching back to this Space), restore the saved
+  // size and briefly suppress saving so the OS resize can't overwrite it.
+  await appWindow.onFocusChanged(({ payload: focused }) => {
+    if (!focused) return;
+    void refreshMonitorWidth();
+    const s = loadWinSize();
+    if (!s) return;
+    suppressWinSaveUntil = Date.now() + 600;
+    void appWindow.setSize(new PhysicalSize(s.width, s.height));
+  });
+}
+
 async function init(): Promise<void> {
+  // Remember/restore the window size (see setupWindowSize).
+  await setupWindowSize();
+
   // Hot reload when the watched file changes on disk. Skip while editing or
   // when the change came from our own save.
   await listen<string>("md-changed", () => {

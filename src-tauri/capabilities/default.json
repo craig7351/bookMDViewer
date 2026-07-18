@@ -7,6 +7,8 @@
     "core:default",
     "core:window:allow-close",
     "core:window:allow-destroy",
+    "core:window:allow-set-size",
+    "core:window:allow-current-monitor",
     "core:webview:allow-set-webview-zoom",
     "opener:default",
     "dialog:allow-open"
