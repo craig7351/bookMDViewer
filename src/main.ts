@@ -517,7 +517,10 @@ function setEditMode(on: boolean): void {
   layout.classList.toggle("mode-edit", on);
   editToggle.textContent = on ? "👁 Preview" : "✎ Edit";
   if (on) {
-    editor.value = currentText;
+    // Only reload from the saved snapshot when there are no unsaved edits;
+    // otherwise entering edit mode would wipe the user's unsaved buffer
+    // (worst case: a freshly-opened empty file loses everything typed).
+    if (!dirty) editor.value = currentText;
     editor.focus();
   } else {
     // Leaving edit mode: render the latest source, keep position.
