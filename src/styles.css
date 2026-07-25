@@ -578,6 +578,70 @@ body {
   color: #fff;
 }
 
+/* ---------- Settings dialog ---------- */
+#settings-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+}
+#settings-modal[hidden] {
+  display: none;
+}
+.settings-box {
+  width: 380px;
+  max-width: 90vw;
+}
+.settings-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.settings-row label {
+  color: var(--muted);
+  font-size: 13.5px;
+  white-space: nowrap;
+}
+.settings-row select {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  cursor: pointer;
+}
+.font-custom {
+  width: 100%;
+  margin: -4px 0 12px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+}
+.settings-preview {
+  margin: 6px 0 18px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--code-bg);
+  font-family: var(--reading-font, inherit);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
 /* ---------- Unsaved-changes close dialog ---------- */
 #close-modal {
   position: fixed;
@@ -627,6 +691,20 @@ body {
 }
 
 .markdown-body {
+  /* Reading font is user-configurable (Settings); falls back to the default
+     stack. Code blocks / editor keep their own monospace rules. */
+  font-family: var(
+    --reading-font,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    "Noto Sans",
+    Helvetica,
+    Arial,
+    sans-serif,
+    "Apple Color Emoji",
+    "Segoe UI Emoji"
+  );
   flex: 1;
   min-width: 0;
   height: 100vh;

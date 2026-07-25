@@ -15,6 +15,7 @@
       <button id="font-inc" class="icon-btn" title="Increase font (Ctrl++)" aria-label="Increase font size">A+</button>
       <button id="wide-toggle" class="icon-btn" title="寬版 / 窄版切換 (Ctrl+Shift+\)" aria-label="Toggle wide content">↔</button>
       <button id="theme-toggle" class="icon-btn" title="主題:跟隨系統 (點擊切換)" aria-label="Toggle color theme">🖥️</button>
+      <button id="settings-btn" class="icon-btn" title="設定" aria-label="Settings">⚙</button>
       <button id="save-btn" title="Save (Ctrl+S)" aria-label="Save" hidden>💾 Save</button>
       <button id="export-btn" title="Export to HTML" aria-label="Export to HTML">⬇ HTML</button>
       <button id="edit-toggle" title="Toggle edit mode (Ctrl+E)" aria-label="Toggle edit mode">✎ Edit</button>
@@ -56,6 +57,30 @@
         <button id="dg-close" title="Close (Esc)">✕</button>
       </div>
       <div id="diagram-stage"></div>
+    </div>
+
+    <div id="settings-modal" hidden>
+      <div class="modal-box settings-box">
+        <div class="settings-title">設定 / Settings</div>
+        <div class="settings-row">
+          <label for="font-latin">英文字型 / Latin font</label>
+          <select id="font-latin"></select>
+        </div>
+        <input id="font-latin-custom" class="font-custom" list="font-list" placeholder="輸入字型名稱…" spellcheck="false" autocomplete="off" hidden />
+        <div class="settings-row">
+          <label for="font-cjk">中文字型 / CJK font</label>
+          <select id="font-cjk"></select>
+        </div>
+        <input id="font-cjk-custom" class="font-custom" list="font-list" placeholder="輸入字型名稱…" spellcheck="false" autocomplete="off" hidden />
+        <datalist id="font-list"></datalist>
+        <p class="settings-preview" id="font-preview">
+          The quick brown fox — 敏捷的棕色狐狸 0123
+        </p>
+        <div class="modal-actions">
+          <button id="settings-reset">重設</button>
+          <button id="settings-close">關閉</button>
+        </div>
+      </div>
     </div>
 
     <div id="about-modal" hidden>

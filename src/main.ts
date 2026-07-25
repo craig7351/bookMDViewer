@@ -787,6 +787,166 @@ systemDarkMQ.addEventListener("change", () => {
 });
 applyTheme();
 
+// ---------- Settings: reading font (separate Latin + CJK) ----------
+// Each option is a fallback stack; unavailable fonts degrade gracefully, and
+// the browser's last-resort fallback still renders glyphs a font lacks.
+interface FontOption {
+  id: string;
+  label: string;
+  stack: string; // families only (no generic); empty = system default
+  generic?: string; // appended after the CJK families
+}
+const DEFAULT_LATIN_STACK =
+  '-apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial';
+const LATIN_FONTS: FontOption[] = [
+  { id: "system", label: "系統預設 Sans", stack: DEFAULT_LATIN_STACK, generic: "sans-serif" },
+  { id: "serif", label: "Serif (Georgia)", stack: 'Georgia, "Times New Roman"', generic: "serif" },
+  { id: "helvetica", label: "Helvetica / Arial", stack: "Helvetica, Arial", generic: "sans-serif" },
+  { id: "verdana", label: "Verdana", stack: "Verdana, Geneva", generic: "sans-serif" },
+  { id: "mono", label: "等寬 Mono", stack: "ui-monospace, Consolas", generic: "monospace" },
+];
+const CJK_FONTS: FontOption[] = [
+  { id: "system", label: "系統預設", stack: "" },
+  { id: "jhenghei", label: "微軟正黑體", stack: '"Microsoft JhengHei", "Microsoft YaHei"' },
+  { id: "pingfang", label: "蘋方 PingFang", stack: '"PingFang TC", "PingFang SC"' },
+  { id: "notosans", label: "思源黑體 Noto Sans", stack: '"Noto Sans TC", "Noto Sans CJK TC"' },
+  { id: "notoserif", label: "思源宋體 Noto Serif", stack: '"Noto Serif TC", "Noto Serif CJK TC"' },
+  { id: "kai", label: "標楷體", stack: '"DFKai-SB", "BiauKai", "Kaiti TC"' },
+];
+
+const settingsBtn = document.getElementById("settings-btn") as HTMLButtonElement;
+const settingsModal = document.getElementById("settings-modal") as HTMLElement;
+const fontLatinSel = document.getElementById("font-latin") as HTMLSelectElement;
+const fontCjkSel = document.getElementById("font-cjk") as HTMLSelectElement;
+const fontLatinCustomEl = document.getElementById("font-latin-custom") as HTMLInputElement;
+const fontCjkCustomEl = document.getElementById("font-cjk-custom") as HTMLInputElement;
+const fontList = document.getElementById("font-list") as HTMLDataListElement;
+
+function fillFontSelect(sel: HTMLSelectElement, opts: FontOption[]): void {
+  opts.forEach((o) => {
+    const opt = document.createElement("option");
+    opt.value = o.id;
+    opt.textContent = o.label;
+    sel.appendChild(opt);
+  });
+  // "Custom" lets the user type any installed font family by name.
+  const custom = document.createElement("option");
+  custom.value = "custom";
+  custom.textContent = "自訂… / Custom…";
+  sel.appendChild(custom);
+}
+fillFontSelect(fontLatinSel, LATIN_FONTS);
+fillFontSelect(fontCjkSel, CJK_FONTS);
+
+let fontLatinId = localStorage.getItem("fontLatin") ?? "system";
+let fontCjkId = localStorage.getItem("fontCjk") ?? "system";
+let fontLatinCustom = localStorage.getItem("fontLatinCustom") ?? "";
+let fontCjkCustom = localStorage.getItem("fontCjkCustom") ?? "";
+
+// Turn a typed font name into a CSS family fragment (quote it unless the user
+// already typed a comma-separated stack of their own).
+function toFamily(v: string): string {
+  const t = v.trim();
+  if (!t) return "";
+  return t.includes(",") ? t : `"${t.replace(/["']/g, "")}"`;
+}
+
+function applyReadingFont(): void {
+  const latin = LATIN_FONTS.find((f) => f.id === fontLatinId) ?? LATIN_FONTS[0];
+  const latinStack = fontLatinId === "custom" ? toFamily(fontLatinCustom) : latin.stack;
+  const latinGeneric = fontLatinId === "custom" ? "sans-serif" : latin.generic ?? "sans-serif";
+  const cjkStack =
+    fontCjkId === "custom"
+      ? toFamily(fontCjkCustom)
+      : (CJK_FONTS.find((f) => f.id === fontCjkId) ?? CJK_FONTS[0]).stack;
+
+  const parts = [latinStack, cjkStack, latinGeneric,
+    '"Apple Color Emoji"', '"Segoe UI Emoji"'].filter(Boolean);
+  document.documentElement.style.setProperty("--reading-font", parts.join(", "));
+
+  fontLatinSel.value = fontLatinId;
+  fontCjkSel.value = fontCjkId;
+  fontLatinCustomEl.hidden = fontLatinId !== "custom";
+  fontCjkCustomEl.hidden = fontCjkId !== "custom";
+  fontLatinCustomEl.value = fontLatinCustom;
+  fontCjkCustomEl.value = fontCjkCustom;
+
+  localStorage.setItem("fontLatin", fontLatinId);
+  localStorage.setItem("fontCjk", fontCjkId);
+  localStorage.setItem("fontLatinCustom", fontLatinCustom);
+  localStorage.setItem("fontCjkCustom", fontCjkCustom);
+}
+fontLatinSel.addEventListener("change", () => {
+  fontLatinId = fontLatinSel.value;
+  applyReadingFont();
+  if (fontLatinId === "custom") fontLatinCustomEl.focus();
+});
+fontCjkSel.addEventListener("change", () => {
+  fontCjkId = fontCjkSel.value;
+  applyReadingFont();
+  if (fontCjkId === "custom") fontCjkCustomEl.focus();
+});
+fontLatinCustomEl.addEventListener("input", () => {
+  fontLatinCustom = fontLatinCustomEl.value;
+  applyReadingFont();
+});
+fontCjkCustomEl.addEventListener("input", () => {
+  fontCjkCustom = fontCjkCustomEl.value;
+  applyReadingFont();
+});
+(document.getElementById("settings-reset") as HTMLButtonElement).addEventListener(
+  "click",
+  () => {
+    fontLatinId = "system";
+    fontCjkId = "system";
+    applyReadingFont();
+  },
+);
+
+// Populate the autocomplete list with actually-installed fonts (once). Uses the
+// Local Font Access API — available on WebView2/Windows; on WKWebView (macOS)
+// and WebKitGTK (Linux) it's absent, so users just type the name manually.
+let fontsQueried = false;
+async function populateInstalledFonts(): Promise<void> {
+  if (fontsQueried) return;
+  fontsQueried = true;
+  const query = (window as unknown as { queryLocalFonts?: () => Promise<Array<{ family: string }>> })
+    .queryLocalFonts;
+  if (typeof query !== "function") return;
+  try {
+    const fonts = await query();
+    const seen = new Set<string>();
+    for (const f of fonts) {
+      if (f.family && !seen.has(f.family)) {
+        seen.add(f.family);
+        const o = document.createElement("option");
+        o.value = f.family;
+        fontList.appendChild(o);
+      }
+    }
+  } catch {
+    /* unsupported or permission denied — manual typing still works */
+  }
+}
+
+function openSettings(): void {
+  settingsModal.hidden = false;
+  void populateInstalledFonts();
+}
+function closeSettings(): void {
+  settingsModal.hidden = true;
+}
+settingsBtn.addEventListener("click", openSettings);
+(document.getElementById("settings-close") as HTMLButtonElement).addEventListener(
+  "click",
+  closeSettings,
+);
+// Click the dimmed backdrop (outside the box) to dismiss.
+settingsModal.addEventListener("click", (ev) => {
+  if (ev.target === settingsModal) closeSettings();
+});
+applyReadingFont();
+
 // ---------- About dialog (version info) ----------
 const REPO_URL = "https://github.com/craig7351/bookMDViewer";
 const aboutModal = document.getElementById("about-modal") as HTMLElement;
@@ -1182,6 +1342,8 @@ window.addEventListener("keydown", (ev) => {
     toggleFiles();
   } else if (ev.key === "Escape" && !diagramModal.hidden) {
     closeDiagram();
+  } else if (ev.key === "Escape" && !settingsModal.hidden) {
+    closeSettings();
   } else if (ev.key === "Escape" && !findBar.hidden) {
     closeFind();
   }
