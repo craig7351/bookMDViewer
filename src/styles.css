@@ -642,6 +642,58 @@ body {
   line-height: 1.5;
 }
 
+.settings-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 6px 0 14px;
+}
+.settings-ver {
+  color: var(--muted);
+  font-size: 13.5px;
+}
+.settings-ver #update-current {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  color: var(--fg);
+}
+#update-check {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  cursor: pointer;
+}
+#update-check:hover {
+  filter: brightness(1.08);
+}
+#update-check:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.update-status {
+  margin-top: 10px;
+  font-size: 13.5px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.update-status[hidden] {
+  display: none;
+}
+.update-status.new {
+  color: var(--accent);
+}
+.update-status a {
+  color: #fff;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 4px 10px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
 /* ---------- Unsaved-changes close dialog ---------- */
 #close-modal {
   position: fixed;

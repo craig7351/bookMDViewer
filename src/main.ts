@@ -947,6 +947,64 @@ settingsModal.addEventListener("click", (ev) => {
 });
 applyReadingFont();
 
+// ---------- Check for updates (GitHub latest release) ----------
+const updateCheckBtn = document.getElementById("update-check") as HTMLButtonElement;
+const updateStatus = document.getElementById("update-status") as HTMLElement;
+const updateCurrent = document.getElementById("update-current") as HTMLElement;
+updateCurrent.textContent = `v${__APP_VERSION__}`;
+
+// Compare dotted versions: >0 if a newer than b, <0 if older, 0 if equal.
+function compareVersions(a: string, b: string): number {
+  const pa = a.split(".").map((n) => parseInt(n, 10) || 0);
+  const pb = b.split(".").map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (d !== 0) return d;
+  }
+  return 0;
+}
+
+function showUpdateStatus(text: string, isNew = false, url?: string): void {
+  updateStatus.hidden = false;
+  updateStatus.classList.toggle("new", isNew);
+  updateStatus.textContent = text;
+  if (url) {
+    const a = document.createElement("a");
+    a.textContent = "前往下載";
+    a.href = "#";
+    a.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      void openUrl(url);
+    });
+    updateStatus.append(" ", a);
+  }
+}
+
+async function checkUpdate(): Promise<void> {
+  updateCheckBtn.disabled = true;
+  showUpdateStatus("檢查中…");
+  try {
+    const res = await fetch(
+      "https://api.github.com/repos/craig7351/bookMDViewer/releases/latest",
+      { headers: { Accept: "application/vnd.github+json" } },
+    );
+    if (!res.ok) throw new Error(String(res.status));
+    const data = (await res.json()) as { tag_name?: string; html_url?: string };
+    const latest = (data.tag_name ?? "").replace(/^v/, "");
+    if (!latest) throw new Error("no tag");
+    if (compareVersions(latest, __APP_VERSION__) > 0) {
+      showUpdateStatus(`發現新版 v${latest}`, true, data.html_url);
+    } else {
+      showUpdateStatus("已是最新版本 ✓");
+    }
+  } catch {
+    showUpdateStatus("無法檢查更新(請確認網路)");
+  } finally {
+    updateCheckBtn.disabled = false;
+  }
+}
+updateCheckBtn.addEventListener("click", () => void checkUpdate());
+
 // ---------- About dialog (version info) ----------
 const REPO_URL = "https://github.com/craig7351/bookMDViewer";
 const aboutModal = document.getElementById("about-modal") as HTMLElement;
