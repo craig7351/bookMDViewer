@@ -2032,7 +2032,7 @@ dependencies = [
 
 [[package]]
 name = "md-viewer"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "notify",
  "serde",
