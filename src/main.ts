@@ -1428,17 +1428,33 @@ interface WinSize {
   width: number;
   height: number;
 }
+// Matches the window's minWidth/minHeight in tauri.conf.json. Sizes below this
+// are degenerate (e.g. the OS reports 0×0 while minimized) and must never be
+// saved or restored — doing so shrinks the window to an unusable sliver.
+const MIN_WIN_W = 400;
+const MIN_WIN_H = 300;
+function isSaneSize(w: unknown, h: unknown): w is number {
+  return (
+    typeof w === "number" &&
+    typeof h === "number" &&
+    w >= MIN_WIN_W &&
+    h >= MIN_WIN_H
+  );
+}
 function loadWinSize(): WinSize | null {
   try {
     const s = JSON.parse(localStorage.getItem("winSize") ?? "null");
-    return s && typeof s.width === "number" && typeof s.height === "number"
-      ? s
+    // Reject degenerate stored values so an upgrade auto-heals a corrupt size.
+    return s && isSaneSize(s.width, s.height)
+      ? { width: s.width, height: s.height }
       : null;
   } catch {
     return null;
   }
 }
 function saveWinSize(width: number, height: number): void {
+  // Never persist a minimized / degenerate size.
+  if (!isSaneSize(width, height)) return;
   localStorage.setItem(
     "winSize",
     JSON.stringify({ width: Math.round(width), height: Math.round(height) }),
@@ -1476,6 +1492,8 @@ async function setupWindowSize(): Promise<void> {
   await appWindow.onResized(({ payload }) => {
     if (Date.now() < suppressWinSaveUntil) return;
     if (monitorWidth && payload.width >= monitorWidth - 2) return;
+    // Ignore minimized / degenerate sizes (0×0 etc.) — saveWinSize also guards.
+    if (!isSaneSize(payload.width, payload.height)) return;
     const { width, height } = payload;
     window.clearTimeout(winSaveTimer);
     winSaveTimer = window.setTimeout(() => saveWinSize(width, height), 300);
