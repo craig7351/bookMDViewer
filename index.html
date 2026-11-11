@@ -31,7 +31,7 @@
       <button id="find-close" title="Close (Esc)" aria-label="Close find">✕</button>
     </div>
     <div id="layout">
-      <nav id="files" aria-label="File explorer"></nav>
+      <nav id="files" aria-label="File explorer" tabindex="-1"></nav>
       <nav id="toc" aria-label="Table of contents"></nav>
       <textarea
         id="editor"
@@ -115,6 +115,16 @@
           <button id="modal-save">儲存並關閉</button>
           <button id="modal-discard">不儲存關閉</button>
           <button id="modal-cancel">取消</button>
+        </div>
+      </div>
+    </div>
+    <div id="delete-modal" hidden>
+      <div class="modal-box">
+        <p>確定要將 <strong id="delete-name"></strong> 移至資源回收筒嗎?</p>
+        <p class="modal-hint" id="delete-hint" hidden>此檔案有未儲存的變更,將一併捨棄。</p>
+        <div class="modal-actions">
+          <button id="delete-cancel">取消</button>
+          <button id="delete-confirm" class="danger">移至回收筒</button>
         </div>
       </div>
     </div>

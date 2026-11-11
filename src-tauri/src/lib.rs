@@ -160,6 +160,23 @@ fn write_md(path: String, content: String) -> Result<(), String> {
     std::fs::write(&path, content).map_err(|e| format!("Failed to write {path}: {e}"))
 }
 
+/// Move a Markdown file to the OS trash (Recycle Bin on Windows).
+#[tauri::command]
+fn delete_md(path: String) -> Result<(), String> {
+    let p = PathBuf::from(&path);
+    if !p.is_file() {
+        return Err(format!("Not a file: {path}"));
+    }
+    let is_md = p
+        .extension()
+        .map(|e| e.eq_ignore_ascii_case("md") || e.eq_ignore_ascii_case("markdown"))
+        .unwrap_or(false);
+    if !is_md {
+        return Err("Only Markdown files can be deleted".into());
+    }
+    trash::delete(&p).map_err(|e| format!("Failed to delete {path}: {e}"))
+}
+
 /// Begin watching `path`; emits `md-changed` whenever the file is modified.
 /// We watch the *parent directory* (non-recursive) because many editors save
 /// by replacing the file, which breaks a watch placed directly on the file.
@@ -215,6 +232,7 @@ pub fn run() {
             start_zoom,
             read_md,
             write_md,
+            delete_md,
             list_dir,
             open_new_window,
             watch_file

@@ -480,6 +480,8 @@ async function openFile(
   watch = true,
   preserveScroll = false,
 ): Promise<void> {
+  // A manual open (dialog, drag-drop, recent list…) ends any arrow-key run.
+  if (path !== navAnchor) navAnchor = null;
   try {
     const text = await invoke<string>("read_md", { path });
     currentPath = path;
@@ -684,6 +686,7 @@ function showCloseModal(): void {
 }
 function hideCloseModal(): void {
   closeModal.hidden = true;
+  navAnchor = null;
 }
 (document.getElementById("modal-cancel") as HTMLButtonElement).addEventListener(
   "click",
@@ -1094,6 +1097,15 @@ interface DirListing {
 }
 
 let filesOpen = localStorage.getItem("filesOpen") === "true";
+// Markdown files currently listed, in display order (keyboard navigation).
+let mdFiles: string[] = [];
+// Set when keyboard navigation / a row click should hand focus back to the
+// panel after the list is rebuilt (opening a file re-renders it).
+let wantPanelFocus = false;
+// Last file we stepped to; keeps rapid arrow presses moving forward even
+// though `currentPath` only updates once the async open completes.
+let navAnchor: string | null = null;
+let navTimer: number | undefined;
 
 function dirOf(p: string): string {
   return p.replace(/[\\/][^\\/]*$/, "");
@@ -1154,6 +1166,7 @@ window.addEventListener("click", closeFileMenu);
 window.addEventListener("blur", closeFileMenu);
 
 async function renderFiles(dir: string | null): Promise<void> {
+  mdFiles = [];
   if (!dir) {
     filesPanel.innerHTML = "";
     const hint = document.createElement("div");
@@ -1204,6 +1217,7 @@ async function renderFiles(dir: string | null): Promise<void> {
         fileRow(entry.name, "📁", () => void renderFiles(entry.path)),
       );
     } else {
+      mdFiles.push(entry.path);
       filesPanel.appendChild(
         fileRow(entry.name, "📄", () => switchToFile(entry.path), {
           active: entry.path === currentPath,
@@ -1211,6 +1225,16 @@ async function renderFiles(dir: string | null): Promise<void> {
         }),
       );
     }
+  }
+
+  // Opening a file rebuilds this list, which drops DOM focus. Hand it back so
+  // repeated arrow-key navigation keeps working.
+  if (wantPanelFocus) {
+    wantPanelFocus = false;
+    const activeRow =
+      filesPanel.querySelector<HTMLElement>(".file-item.active") ?? filesPanel;
+    activeRow.focus({ preventScroll: true });
+    activeRow.scrollIntoView({ block: "nearest" });
   }
 }
 
@@ -1234,6 +1258,121 @@ function toggleFiles(): void {
 filesBtn.addEventListener("click", toggleFiles);
 // Restore persisted state on load.
 if (filesOpen) layout.classList.add("files-open");
+
+// ---------- Keyboard navigation inside the file panel ----------
+// Arrow keys switch to the previous/next Markdown file; Delete moves the open
+// file to the OS trash. Only active while the panel owns focus, so the reader
+// and editor keep their normal arrow-key scrolling.
+const deleteModal = document.getElementById("delete-modal") as HTMLElement;
+const deleteNameEl = document.getElementById("delete-name") as HTMLElement;
+const deleteHint = document.getElementById("delete-hint") as HTMLElement;
+const deleteConfirmBtn = document.getElementById("delete-confirm") as HTMLButtonElement;
+const deleteCancelBtn = document.getElementById("delete-cancel") as HTMLButtonElement;
+let pendingDelete: string | null = null;
+
+function stepFile(delta: 1 | -1): void {
+  if (!mdFiles.length) return;
+  const base = navAnchor ?? currentPath;
+  let i = base ? mdFiles.indexOf(base) : -1;
+  if (i === -1) i = delta > 0 ? -1 : 0;
+  const next = mdFiles[Math.min(Math.max(i + delta, 0), mdFiles.length - 1)];
+  if (!next || next === base) return;
+  navAnchor = next;
+  wantPanelFocus = true;
+  // Coalesce held-key repeats into a single open.
+  window.clearTimeout(navTimer);
+  navTimer = window.setTimeout(() => void switchToFile(next), 80);
+}
+
+function requestDelete(): void {
+  if (!currentPath) return;
+  pendingDelete = currentPath;
+  deleteNameEl.textContent = currentPath.split(/[\\/]/).pop() ?? currentPath;
+  deleteHint.hidden = !dirty;
+  deleteModal.hidden = false;
+  deleteConfirmBtn.focus();
+}
+
+function hideDeleteModal(): void {
+  pendingDelete = null;
+  deleteModal.hidden = true;
+  const activeRow = filesPanel.querySelector<HTMLElement>(".file-item.active");
+  if (filesOpen && activeRow) activeRow.focus({ preventScroll: true });
+}
+
+async function confirmDelete(): Promise<void> {
+  const path = pendingDelete;
+  deleteModal.hidden = true;
+  pendingDelete = null;
+  if (!path) return;
+
+  const name = path.split(/[\\/]/).pop() ?? path;
+  const index = mdFiles.indexOf(path);
+  // Prefer the next file in the list, falling back to the previous one. If the
+  // open file lives in another folder, just go home.
+  const next =
+    index === -1 ? null : (mdFiles[index + 1] ?? mdFiles[index - 1] ?? null);
+  const dir = dirOf(path);
+
+  try {
+    await invoke("delete_md", { path });
+  } catch (e) {
+    toast(String(e));
+    return;
+  }
+
+  // Ignore the filesystem event the deletion itself triggers.
+  suppressReloadUntil = Date.now() + 1000;
+  localStorage.setItem(
+    "recents",
+    JSON.stringify(getRecents().filter((p) => p !== path)),
+  );
+  navAnchor = null;
+  wantPanelFocus = true;
+
+  if (next) {
+    await openFile(next);
+  } else {
+    goHome();
+    if (filesOpen) await renderFiles(dir);
+  }
+  toast(`已移至回收筒:${name}`);
+}
+
+filesPanel.addEventListener("keydown", (ev) => {
+  const target = ev.target as HTMLElement;
+  // The path editor keeps its own arrow / delete behaviour.
+  if (target.closest("input, textarea, select")) return;
+  if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
+    ev.preventDefault();
+    stepFile(ev.key === "ArrowDown" ? 1 : -1);
+  } else if (ev.key === "Delete") {
+    ev.preventDefault();
+    requestDelete();
+  }
+});
+filesPanel.addEventListener("click", (ev) => {
+  const target = ev.target as HTMLElement;
+  if (target.closest(".file-item")) {
+    wantPanelFocus = true;
+  } else if (target === filesPanel) {
+    filesPanel.focus({ preventScroll: true });
+  }
+});
+deleteConfirmBtn.addEventListener("click", () => void confirmDelete());
+deleteCancelBtn.addEventListener("click", hideDeleteModal);
+// Left/Right move focus between the two buttons; Enter activates the focused one.
+deleteModal.addEventListener("keydown", (ev) => {
+  if (ev.key !== "ArrowLeft" && ev.key !== "ArrowRight") return;
+  ev.preventDefault();
+  const buttons = [deleteCancelBtn, deleteConfirmBtn];
+  const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
+  const step = ev.key === "ArrowRight" ? 1 : -1;
+  buttons[(index + step + buttons.length) % buttons.length].focus();
+});
+deleteModal.addEventListener("click", (ev) => {
+  if (ev.target === deleteModal) hideDeleteModal();
+});
 
 // ---------- Mermaid diagram lightbox (click to zoom/pan) ----------
 const diagramModal = document.getElementById("diagram-modal") as HTMLElement;
@@ -1401,6 +1540,8 @@ window.addEventListener("keydown", (ev) => {
   } else if (ev.ctrlKey && (ev.key === "b" || ev.key === "B")) {
     ev.preventDefault();
     toggleFiles();
+  } else if (ev.key === "Escape" && !deleteModal.hidden) {
+    hideDeleteModal();
   } else if (ev.key === "Escape" && !diagramModal.hidden) {
     closeDiagram();
   } else if (ev.key === "Escape" && !settingsModal.hidden) {
