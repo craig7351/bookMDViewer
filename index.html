@@ -32,12 +32,15 @@
     </div>
     <div id="layout">
       <nav id="files" aria-label="File explorer"></nav>
+      <div class="splitter" id="split-files" data-target="files" title="拖曳調整寬度(雙擊還原)"></div>
       <nav id="toc" aria-label="Table of contents"></nav>
+      <div class="splitter" id="split-toc" data-target="toc" title="拖曳調整寬度(雙擊還原)"></div>
       <textarea
         id="editor"
         spellcheck="false"
         placeholder="Markdown source…"
       ></textarea>
+      <div class="splitter" id="split-editor" data-target="editor" title="拖曳調整寬度(雙擊還原)"></div>
       <article id="content" class="markdown-body">
         <div class="empty-state">
           <h1>Markdown Viewer</h1>

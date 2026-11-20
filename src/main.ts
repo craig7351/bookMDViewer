@@ -1235,6 +1235,89 @@ filesBtn.addEventListener("click", toggleFiles);
 // Restore persisted state on load.
 if (filesOpen) layout.classList.add("files-open");
 
+// ---------- Draggable panel splitters (file tree / outline / editor) ----------
+// Sidebar widths are stored in px; the editor/preview split as the editor's
+// share (0..1) of the space the two share, so it survives window resizes.
+const PANEL_LIMITS = {
+  files: { min: 140, max: 640, def: 257 },
+  toc: { min: 160, max: 640, def: 289 },
+} as const;
+
+function applyPanelWidth(which: "files" | "toc", w: number | null): void {
+  if (w === null) layout.style.removeProperty(`--${which}-w`);
+  else layout.style.setProperty(`--${which}-w`, `${Math.round(w)}px`);
+}
+function applyEditorRatio(r: number | null): void {
+  if (r === null) {
+    layout.style.removeProperty("--editor-grow");
+    layout.style.removeProperty("--preview-grow");
+  } else {
+    layout.style.setProperty("--editor-grow", r.toFixed(4));
+    layout.style.setProperty("--preview-grow", (1 - r).toFixed(4));
+  }
+}
+(["files", "toc"] as const).forEach((k) => {
+  const v = parseFloat(localStorage.getItem(`panelW.${k}`) ?? "");
+  const { min, max } = PANEL_LIMITS[k];
+  if (Number.isFinite(v)) applyPanelWidth(k, Math.min(max, Math.max(min, v)));
+});
+{
+  const r = parseFloat(localStorage.getItem("panelW.editorRatio") ?? "");
+  if (Number.isFinite(r) && r > 0 && r < 1) applyEditorRatio(Math.min(0.85, Math.max(0.15, r)));
+}
+
+document.querySelectorAll<HTMLElement>(".splitter").forEach((sp) => {
+  const target = sp.dataset.target as "files" | "toc" | "editor";
+  sp.addEventListener("dblclick", () => {
+    if (target === "editor") {
+      applyEditorRatio(null);
+      localStorage.removeItem("panelW.editorRatio");
+    } else {
+      applyPanelWidth(target, null);
+      localStorage.removeItem(`panelW.${target}`);
+    }
+  });
+  sp.addEventListener("pointerdown", (ev) => {
+    if (ev.button !== 0) return;
+    ev.preventDefault();
+    sp.setPointerCapture(ev.pointerId);
+    sp.classList.add("dragging");
+    document.body.classList.add("panel-resizing");
+    const panel = target === "files" ? filesPanel : target === "toc" ? toc : editor;
+    const left = panel.getBoundingClientRect().left;
+    const right = content.getBoundingClientRect().right;
+    let last: number | null = null;
+    const onMove = (e: PointerEvent): void => {
+      if (target === "editor") {
+        const span = right - left;
+        if (span <= 0) return;
+        last = Math.min(0.85, Math.max(0.15, (e.clientX - left) / span));
+        applyEditorRatio(last);
+      } else {
+        const { min, max } = PANEL_LIMITS[target];
+        // Never squeeze the reading area below ~300px.
+        const cap = Math.min(max, right - 300 - left);
+        last = Math.min(Math.max(min, cap), Math.max(min, e.clientX - left));
+        applyPanelWidth(target, last);
+      }
+    };
+    const onUp = (): void => {
+      sp.removeEventListener("pointermove", onMove);
+      sp.removeEventListener("pointerup", onUp);
+      sp.removeEventListener("pointercancel", onUp);
+      sp.classList.remove("dragging");
+      document.body.classList.remove("panel-resizing");
+      if (last !== null) {
+        const key = target === "editor" ? "panelW.editorRatio" : `panelW.${target}`;
+        localStorage.setItem(key, String(target === "editor" ? last : Math.round(last)));
+      }
+    };
+    sp.addEventListener("pointermove", onMove);
+    sp.addEventListener("pointerup", onUp);
+    sp.addEventListener("pointercancel", onUp);
+  });
+});
+
 // ---------- Mermaid diagram lightbox (click to zoom/pan) ----------
 const diagramModal = document.getElementById("diagram-modal") as HTMLElement;
 const diagramStage = document.getElementById("diagram-stage") as HTMLElement;

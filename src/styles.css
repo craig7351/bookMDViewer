@@ -63,8 +63,9 @@ body {
 
 #toc {
   display: none;
-  flex: 0 0 264px;
-  width: 264px;
+  flex: 0 0 var(--toc-w, 289px);
+  width: var(--toc-w, 289px);
+  box-sizing: border-box;
   position: sticky;
   top: 0;
   max-height: 100vh;
@@ -114,8 +115,9 @@ body {
 /* ---------- File explorer panel ---------- */
 #files {
   display: none;
-  flex: 0 0 240px;
-  width: 240px;
+  flex: 0 0 var(--files-w, 257px);
+  width: var(--files-w, 257px);
+  box-sizing: border-box;
   position: sticky;
   top: 0;
   max-height: 100vh;
@@ -272,6 +274,52 @@ body {
 }
 #layout.mode-edit #editor {
   display: block;
+  flex: var(--editor-grow, 1) 1 0;
+}
+#layout.mode-edit .markdown-body {
+  flex: var(--preview-grow, 1) 1 0;
+}
+
+/* ---------- Draggable panel splitters ---------- */
+.splitter {
+  display: none;
+  flex: 0 0 7px;
+  margin: 0 -3px;
+  position: relative;
+  z-index: 5;
+  cursor: col-resize;
+  touch-action: none;
+}
+.splitter::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 2px;
+  width: 3px;
+  background: transparent;
+  transition: background 0.15s;
+}
+.splitter:hover::after,
+.splitter.dragging::after {
+  background: var(--accent);
+}
+#layout.files-open #split-files,
+#layout.has-toc:not(.toc-collapsed) #split-toc,
+#layout.mode-edit #split-editor {
+  display: block;
+}
+body.panel-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+body.panel-resizing * {
+  cursor: col-resize !important;
+}
+body.panel-resizing iframe,
+body.panel-resizing #content,
+body.panel-resizing #editor {
+  pointer-events: none;
 }
 /* In edit mode the preview fills its half (no centered max-width). */
 #layout.mode-edit .markdown-body {
