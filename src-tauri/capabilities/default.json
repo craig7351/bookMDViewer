@@ -11,6 +11,7 @@
     "core:window:allow-current-monitor",
     "core:webview:allow-set-webview-zoom",
     "opener:default",
-    "dialog:allow-open"
+    "dialog:allow-open",
+    "dialog:allow-save"
   ]
 }

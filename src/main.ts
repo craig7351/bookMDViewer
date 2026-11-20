@@ -9,7 +9,7 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow, currentMonitor } from "@tauri-apps/api/window";
 import { PhysicalSize } from "@tauri-apps/api/dpi";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
 
 // hljs theme CSS as strings, so HTML export can be fully self-contained.
 import hljsLightCss from "highlight.js/styles/github.css?inline";
@@ -652,7 +652,12 @@ async function exportHtml(): Promise<void> {
   if (editMode) await renderMarkdown(editor.value, true);
 
   const base = currentPath.replace(/\.(md|markdown)$/i, "");
-  const out = `${base}.html`;
+  const out = await saveDialog({
+    title: "匯出 HTML",
+    defaultPath: `${base}.html`,
+    filters: [{ name: "HTML", extensions: ["html", "htm"] }],
+  });
+  if (!out) return; // cancelled
   try {
     await invoke("write_md", { path: out, content: buildExportHtml() });
     toast(`已匯出 ${out.split(/[\\/]/).pop()}`);
@@ -662,6 +667,30 @@ async function exportHtml(): Promise<void> {
 }
 
 exportBtn.addEventListener("click", () => void exportHtml());
+
+// Save a copy of the current Markdown source wherever the user chooses.
+async function downloadMd(): Promise<void> {
+  if (!currentPath) {
+    toast("沒有開啟的檔案");
+    return;
+  }
+  const out = await saveDialog({
+    title: "下載 Markdown",
+    defaultPath: currentPath,
+    filters: [{ name: "Markdown", extensions: ["md", "markdown"] }],
+  });
+  if (!out) return; // cancelled
+  try {
+    await invoke("write_md", { path: out, content: editMode ? editor.value : currentText });
+    toast(`已儲存 ${out.split(/[\\/]/).pop()}`);
+  } catch (e) {
+    toast(`儲存失敗: ${String(e)}`);
+  }
+}
+(document.getElementById("download-md-btn") as HTMLButtonElement).addEventListener(
+  "click",
+  () => void downloadMd(),
+);
 
 // ---------- Synced scrolling (editor <-> preview) ----------
 let syncing = false;
